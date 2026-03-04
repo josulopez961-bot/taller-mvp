@@ -1,0 +1,196 @@
+﻿'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
+function percent(status: string) {
+  if (status === 'recibido') return 0
+  if (status === 'en_proceso') return 50
+  if (status === 'listo') return 90
+  if (status === 'entregado') return 100
+  return 0
+}
+
+function barColor(status: string) {
+  if (status === 'recibido') return '#6b7280'     // gris
+  if (status === 'en_proceso') return '#f97316'   // naranja
+  if (status === 'listo') return '#3b82f6'        // azul
+  if (status === 'entregado') return '#22c55e'    // verde
+  return '#6b7280'
+}
+
+function formatDate(dateStr?: string | null) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat('es-EC', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  }).format(d)
+}
+
+export default function PublicOrderPage() {
+  const params = useParams()
+  const raw = (params as any)?.code
+  const code = Array.isArray(raw) ? raw[0] : raw
+
+  console.log('CODE RECIBIDO:', code)
+
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState<string | null>(null)
+  const [order, setOrder] = useState<any>(null)
+
+  useEffect(() => {
+    async function load() {
+      if (!code) return
+
+      const cleanCode = (code || '').trim()
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          public_code,
+          status,
+          summary,
+          estimated_ready_at,
+          vehicles (
+            plate,
+            model,
+            year,
+            make
+          )
+        `)
+        .eq('public_code', cleanCode)
+        .maybeSingle()
+
+      console.log('BUSCANDO public_code =', cleanCode)
+      console.log('ERROR =', error)
+      console.log('DATA =', data)
+
+      if (error) setErr(error.message)
+      else setOrder(data)
+
+      setLoading(false)
+    }
+
+    load()
+  }, [code])
+
+  if (loading) return <div className="min-h-screen p-6">Cargando...</div>
+
+  if (err) {
+    return (
+      <div className="min-h-screen p-6">
+        <h1 className="text-xl font-semibold">No se pudo cargar</h1>
+        <p className="mt-2 text-sm text-red-600">{err}</p>
+      </div>
+    )
+  }
+
+  if (!order) {
+    return (
+      <div className="min-h-screen p-6">
+        <h1 className="text-xl font-semibold">Orden no encontrada</h1>
+      </div>
+    )
+  }
+
+  const p = percent(order.status)
+  const eta = formatDate(order?.estimated_ready_at)
+
+  return (
+    <div className="min-h-screen p-6">
+      <header className="mb-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center">
+            <span className="text-sm font-semibold">FC</span>
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Taller Finecar</h1>
+            <p className="text-sm text-white/60">Seguimiento de vehículo premium</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="mt-4 rounded-xl border p-4">
+        <div className="text-sm text-gray-500">Codigo</div>
+        <div className="font-mono">{order.public_code}</div>
+
+        <div className="mt-4">
+          <div className="text-sm text-gray-500">Estado</div>
+          <div className="font-medium">{order.status}</div>
+
+          <div className="mt-2 h-3 w-full rounded-full bg-gray-700">
+            <div
+              className="h-3 rounded-full"
+              style={{
+                width: `${p}%`,
+                background: barColor(order.status),
+                transition: 'all 300ms ease',
+              }}
+            />
+          </div>
+          <div className="mt-1 text-sm text-gray-500">{p}%</div>
+        </div>
+
+        <div className="mt-4">
+          <div className="text-sm text-gray-500">Detalle</div>
+          <div>{order.summary ?? '-'}</div>
+        </div>
+
+        <div className="mt-8 space-y-3">
+          <div className="text-sm font-medium text-gray-400">Contactar al taller</div>
+          
+          <div className="flex flex-col gap-2">
+            <a
+              href={`https://wa.me/593995556084?text=Hola%20Josué,%20estoy%20consultando%20por%20mi%20orden%20${order.public_code}`}
+              target="_blank"
+              className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-white font-medium hover:bg-green-500 transition w-fit"
+            >
+              💬 Josué López (Mantenimiento)
+            </a>
+
+            <a
+              href={`https://wa.me/593995318519?text=Hola%20Patricio,%20estoy%20consultando%20por%20mi%20orden%20${order.public_code}`}
+              target="_blank"
+              className="inline-flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white font-medium hover:bg-white/10 transition w-fit text-sm"
+            >
+              👤 Patricio López (Gerente General)
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-gray-700 bg-gray-900 p-4">
+        <div className="text-sm text-gray-400">Vehiculo</div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <div className="text-xs text-gray-400">Placa</div>
+            <div className="font-semibold">{order?.vehicles?.plate}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Modelo</div>
+            <div className="font-semibold">
+              {order?.vehicles?.make} {order?.vehicles?.model}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Año</div>
+            <div className="font-semibold">{order?.vehicles?.year}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900 p-4">
+        <div className="text-sm text-gray-400">Entrega estimada</div>
+        {eta ? (
+          <div className="mt-2 font-semibold capitalize">{eta}</div>
+        ) : (
+          <div className="mt-2 text-gray-400">Por confirmar</div>
+        )}
+      </div>
+    </div>
+  )
+}
