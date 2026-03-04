@@ -5,11 +5,15 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 function percent(status: string) {
-  if (status === 'recibido') return 0
-  if (status === 'en_proceso') return 50
-  if (status === 'listo') return 90
-  if (status === 'entregado') return 100
-  return 0
+  const progressMap: Record<string, number> = {
+    recibido: 10,
+    diagnostico: 25,
+    en_proceso: 50,
+    prueba: 75,
+    listo: 90,
+    entregado: 100
+  }
+  return progressMap[status] ?? 0
 }
 
 function barColor(status: string) {
