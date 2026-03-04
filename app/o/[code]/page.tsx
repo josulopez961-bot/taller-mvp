@@ -57,9 +57,9 @@ export default function PublicOrderPage() {
           estimated_ready_at,
           vehicles (
             plate,
+            make,
             model,
-            year,
-            make
+            year
           )
         `)
         .eq('public_code', cleanCode)
@@ -78,11 +78,11 @@ export default function PublicOrderPage() {
     load()
   }, [code])
 
-  if (loading) return <div className="min-h-screen p-6">Cargando...</div>
+  if (loading) return <div className="min-h-screen p-6 text-white bg-black">Cargando...</div>
 
   if (err) {
     return (
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 text-white bg-black">
         <h1 className="text-xl font-semibold">No se pudo cargar</h1>
         <p className="mt-2 text-sm text-red-600">{err}</p>
       </div>
@@ -91,7 +91,7 @@ export default function PublicOrderPage() {
 
   if (!order) {
     return (
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 text-white bg-black">
         <h1 className="text-xl font-semibold">Orden no encontrada</h1>
       </div>
     )
@@ -101,7 +101,7 @@ export default function PublicOrderPage() {
   const eta = formatDate(order?.estimated_ready_at)
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-6 text-white bg-black">
       <header className="mb-6">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center">
@@ -114,30 +114,30 @@ export default function PublicOrderPage() {
         </div>
       </header>
 
-      <div className="mt-4 rounded-xl border p-4">
-        <div className="text-sm text-gray-500">Codigo</div>
-        <div className="font-mono">{order.public_code}</div>
+      <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="text-sm text-gray-400">Código de Orden</div>
+        <div className="font-mono text-lg">{order.public_code}</div>
 
         <div className="mt-4">
-          <div className="text-sm text-gray-500">Estado</div>
-          <div className="font-medium">{order.status}</div>
+          <div className="text-sm text-gray-400">Estado</div>
+          <div className="font-medium capitalize">{order.status}</div>
 
-          <div className="mt-2 h-3 w-full rounded-full bg-gray-700">
+          <div className="mt-2 h-3 w-full rounded-full bg-gray-800">
             <div
               className="h-3 rounded-full"
               style={{
                 width: `${p}%`,
                 background: barColor(order.status),
-                transition: 'all 300ms ease',
+                transition: 'all 500ms ease-out',
               }}
             />
           </div>
-          <div className="mt-1 text-sm text-gray-500">{p}%</div>
+          <div className="mt-1 text-sm text-gray-500">{p}% completado</div>
         </div>
 
         <div className="mt-4">
-          <div className="text-sm text-gray-500">Detalle</div>
-          <div>{order.summary ?? '-'}</div>
+          <div className="text-sm text-gray-400">Detalle de Trabajo</div>
+          <div className="text-gray-200 mt-1">{order.summary ?? 'Sin detalles adicionales'}</div>
         </div>
 
         <div className="mt-8 space-y-3">
@@ -163,32 +163,34 @@ export default function PublicOrderPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-gray-700 bg-gray-900 p-4">
-        <div className="text-sm text-gray-400">Vehiculo</div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-6 rounded-xl border border-white/10 bg-gray-900 p-6">
+        <div className="text-sm text-gray-400 mb-4">Información del Vehículo</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div>
-            <div className="text-xs text-gray-400">Placa</div>
-            <div className="font-semibold">{order?.vehicles?.plate}</div>
+            <div className="text-sm text-gray-400">Placa</div>
+            <div className="text-lg font-semibold">{order.vehicles?.plate ?? '—'}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-400">Modelo</div>
-            <div className="font-semibold">
-              {order?.vehicles?.make} {order?.vehicles?.model}
+            <div className="text-sm text-gray-400">Modelo</div>
+            <div className="text-lg font-semibold">
+              {(order.vehicles?.make && order.vehicles?.model)
+                ? `${order.vehicles.make} ${order.vehicles.model}`
+                : '—'}
             </div>
           </div>
           <div>
-            <div className="text-xs text-gray-400">Año</div>
-            <div className="font-semibold">{order?.vehicles?.year}</div>
+            <div className="text-sm text-gray-400">Año</div>
+            <div className="text-lg font-semibold">{order.vehicles?.year ?? '—'}</div>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900 p-4">
-        <div className="text-sm text-gray-400">Entrega estimada</div>
+      <div className="mt-4 rounded-xl border border-white/10 bg-gray-900 p-6">
+        <div className="text-sm text-gray-400">Entrega Estimada</div>
         {eta ? (
-          <div className="mt-2 font-semibold capitalize">{eta}</div>
+          <div className="mt-2 text-xl font-bold capitalize text-orange-400">{eta}</div>
         ) : (
-          <div className="mt-2 text-gray-400">Por confirmar</div>
+          <div className="mt-2 text-gray-400">Por confirmar con el asesor</div>
         )}
       </div>
     </div>
