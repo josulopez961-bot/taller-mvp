@@ -11,7 +11,7 @@ export async function POST() {
     const { data: last, error: lastError } = await supabase
       .from('orders')
       .select('public_code')
-      .order('created_at', { ascending: false })
+      .order('public_code', { ascending: false })
       .limit(1)
 
     if (lastError) {
@@ -20,8 +20,9 @@ export async function POST() {
 
     let next = 1
 
-    if (last && last[0]?.public_code?.startsWith('FIN')) {
-      next = parseInt(last[0].public_code.replace('FIN', '')) + 1
+    if (last && last.length > 0) {
+      const lastNumber = parseInt(last[0].public_code.replace('FIN', ''))
+      next = lastNumber + 1
     }
 
     const code = `FIN${String(next).padStart(3, '0')}`
