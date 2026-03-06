@@ -28,49 +28,38 @@ export default function AdminPage() {
       }
 
       router.push('/admin/orders')
+      router.refresh()
     } catch (error) {
-      setErr('Error al conectar con el servidor')
+      setErr('Error al iniciar sesión')
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white p-4">
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <form
         onSubmit={onSubmit}
-        className="bg-white/5 border border-white/10 rounded-2xl p-8 w-full max-w-sm backdrop-blur-sm"
+        className="bg-white/5 border border-white/10 rounded-2xl p-8 w-full max-w-sm"
       >
-        <div className="mb-8 flex flex-col items-center">
-          <div className="h-12 w-12 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center mb-4">
-            <span className="text-xl font-bold">FC</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Taller Finecar</h1>
-          <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Admin Panel</p>
-        </div>
+        <h1 className="text-2xl font-semibold mb-6">Ingreso al Panel</h1>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-medium text-gray-500 uppercase mb-2 block">Acceso Restringido</label>
-            <input
-              type="password"
-              placeholder="Ingrese Contraseña"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              className="w-full p-4 rounded-xl bg-black border border-white/10 focus:border-green-600 transition outline-none"
-              autoFocus
-            />
-          </div>
+        <input
+          type="password"
+          placeholder="Contraseña"
+          value={pass}
+          onChange={(e) => setPass(e.target.value)}
+          className="w-full p-3 rounded-lg bg-black border border-white/20 mb-4"
+        />
 
-          {err && <p className="text-red-500 text-sm font-medium">{err}</p>}
+        {err && <p className="text-red-400 text-sm mb-3">{err}</p>}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full bg-green-600 hover:bg-green-500 active:scale-[0.98] transition-all rounded-xl py-4 font-bold ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {loading ? 'Verificando...' : 'Entrar al Panel'}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-green-600 hover:bg-green-700 transition rounded-lg py-3 font-medium disabled:opacity-60"
+        >
+          {loading ? 'Entrando...' : 'Entrar'}
+        </button>
       </form>
     </div>
   )
