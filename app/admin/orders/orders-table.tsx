@@ -1,6 +1,7 @@
 ﻿'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, Fragment } from 'react'
+import OrderNotes from './order-notes'
 
 type OrderItem = {
   id: string
@@ -60,8 +61,9 @@ export default function OrdersTable({
   initialOrders: OrderItem[]
 }) {
   const [orders, setOrders] = useState(initialOrders)
-  const [savingId, setSavingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [openNotesId, setOpenNotesId] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   async function updateStatus(orderId: string, newStatus: string) {
     const previous = orders
@@ -176,85 +178,105 @@ export default function OrdersTable({
 
             <tbody>
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="border-t border-zinc-800 align-top">
-                  <td className="p-4 font-semibold">{order.public_code}</td>
+                <Fragment key={order.id}>
+                  <tr className="border-t border-zinc-800 align-top">
+                    <td className="p-4 font-semibold">{order.public_code}</td>
 
-                  <td className="p-4">
-                    <div>{order.customer_name || '-'}</div>
-                    <div className="text-zinc-400 text-xs">{order.whatsapp || '-'}</div>
-                  </td>
+                    <td className="p-4">
+                      <div>{order.customer_name || '-'}</div>
+                      <div className="text-zinc-400 text-xs">{order.whatsapp || '-'}</div>
+                    </td>
 
-                  <td className="p-4">
-                    <div>{order.plate || '-'}</div>
-                    <div className="text-zinc-400 text-xs">
-                      {[order.make, order.model].filter(Boolean).join(' ')}
-                    </div>
-                  </td>
+                    <td className="p-4">
+                      <div>{order.plate || '-'}</div>
+                      <div className="text-zinc-400 text-xs">
+                        {[order.make, order.model].filter(Boolean).join(' ')}
+                      </div>
+                    </td>
 
-                  <td className="p-4 max-w-[320px]">
-                    <div className="whitespace-normal break-words">
-                      {order.summary || '-'}
-                    </div>
-                  </td>
+                    <td className="p-4 max-w-[320px]">
+                      <div className="whitespace-normal break-words">
+                        {order.summary || '-'}
+                      </div>
+                    </td>
 
-                  <td className="p-4">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
-                        order.status
-                      )}`}
-                    >
-                      {order.status.replace('_', ' ')}
-                    </span>
-                  </td>
-
-                  <td className="p-4">
-                    <select
-                      value={order.status}
-                      onChange={(e) => updateStatus(order.id, e.target.value)}
-                      disabled={savingId === order.id}
-                      className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white"
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-
-                    {savingId === order.id && (
-                      <div className="text-xs text-zinc-400 mt-2">Guardando...</div>
-                    )}
-                  </td>
-
-                  <td className="p-4">
-                    <div className="flex flex-col gap-2 min-w-[160px]">
-                      <a
-                        href={`/o/${order.public_code}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2"
+                    <td className="p-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
+                          order.status
+                        )}`}
                       >
-                        Ver cliente
-                      </a>
+                        {order.status.replace('_', ' ')}
+                      </span>
+                    </td>
 
-                      <button
-                        type="button"
-                        onClick={() => copyClientLink(order.public_code)}
-                        className="inline-flex justify-center rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2"
+                    <td className="p-4">
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateStatus(order.id, e.target.value)}
+                        disabled={savingId === order.id}
+                        className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white"
                       >
-                        Copiar link
-                      </button>
+                        {STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
 
-                      <button
-                        type="button"
-                        onClick={() => openWhatsApp(order)}
-                        className="inline-flex justify-center rounded-lg bg-green-600 hover:bg-green-700 px-3 py-2"
-                      >
-                        Enviar WhatsApp
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                      {savingId === order.id && (
+                        <div className="text-xs text-zinc-400 mt-2">Guardando...</div>
+                      )}
+                    </td>
+
+                    <td className="p-4">
+                      <div className="flex flex-col gap-2 min-w-[160px]">
+                        <a
+                          href={`/o/${order.public_code}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2"
+                        >
+                          Ver cliente
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => copyClientLink(order.public_code)}
+                          className="inline-flex justify-center rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2"
+                        >
+                          Copiar link
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openWhatsApp(order)}
+                          className="inline-flex justify-center rounded-lg bg-green-600 hover:bg-green-700 px-3 py-2"
+                        >
+                          Enviar WhatsApp
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenNotesId((prev) => (prev === order.id ? null : order.id))
+                          }
+                          className="inline-flex justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2"
+                        >
+                          {openNotesId === order.id ? 'Ocultar notas' : 'Notas'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {openNotesId === order.id && (
+                    <tr className="border-t border-zinc-800 bg-zinc-950/50">
+                      <td colSpan={7} className="p-4">
+                        <OrderNotes orderId={order.id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
 
               {filteredOrders.length === 0 && (
