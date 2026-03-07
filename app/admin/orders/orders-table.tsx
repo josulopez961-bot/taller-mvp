@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useMemo, useState, Fragment } from 'react'
+import Link from 'next/link'
 import OrderNotes from './order-notes'
 
 type OrderItem = {
@@ -148,10 +149,23 @@ export default function OrdersTable({
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">Órdenes</h1>
-        <p className="text-zinc-400 mb-6">
-          Gestiona estados, copia links y envía actualizaciones por WhatsApp.
-        </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Órdenes</h1>
+            <p className="text-zinc-400">
+              Gestiona estados, copia links y envía actualizaciones por WhatsApp.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <Link
+              href="/admin/new"
+              className="inline-flex items-center justify-center rounded-lg bg-green-600 hover:bg-green-700 px-5 py-3 font-semibold"
+            >
+              + Nueva orden
+            </Link>
+          </div>
+        </div>
 
         <div className="mb-6">
           <input
