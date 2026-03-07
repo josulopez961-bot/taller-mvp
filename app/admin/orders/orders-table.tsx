@@ -126,7 +126,6 @@ export default function OrdersTable({
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
   }
-  }
 
   const filteredOrders = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -305,5 +304,6 @@ export default function OrdersTable({
     </div>
   )
 }
+
 
 
