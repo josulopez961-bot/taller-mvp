@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 type OrderItem = {
   id: string
@@ -24,6 +24,36 @@ const STATUS_OPTIONS = [
   'entregado',
 ]
 
+function getStatusBadgeClass(status: string) {
+  switch (status) {
+    case 'recibido':
+      return 'bg-zinc-700 text-white border border-zinc-600'
+    case 'diagnostico':
+      return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+    case 'en_proceso':
+      return 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+    case 'pruebas':
+      return 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+    case 'listo':
+      return 'bg-green-500/20 text-green-300 border border-green-500/30'
+    case 'entregado':
+      return 'bg-emerald-700/30 text-emerald-300 border border-emerald-600/30'
+    default:
+      return 'bg-zinc-700 text-white border border-zinc-600'
+  }
+}
+
+function normalizeWhatsapp(input: string) {
+  const digits = input.replace(/\D/g, '')
+
+  if (!digits) return ''
+
+  if (digits.startsWith('593')) return digits
+  if (digits.startsWith('0')) return `593${digits.slice(1)}`
+
+  return digits
+}
+
 export default function OrdersTable({
   initialOrders,
 }: {
@@ -31,6 +61,7 @@ export default function OrdersTable({
 }) {
   const [orders, setOrders] = useState(initialOrders)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   async function updateStatus(orderId: string, newStatus: string) {
     const previous = orders
@@ -64,13 +95,70 @@ export default function OrdersTable({
     }
   }
 
+  async function copyClientLink(publicCode: string) {
+    const link = `${window.location.origin}/o/${publicCode}`
+
+    try {
+      await navigator.clipboard.writeText(link)
+      alert(`Link copiado:\n${link}`)
+    } catch {
+      alert(`No se pudo copiar automáticamente.\nLink:\n${link}`)
+    }
+  }
+
+  function openWhatsApp(order: OrderItem) {
+    const phone = normalizeWhatsapp(order.whatsapp)
+
+    if (!phone) {
+      alert('Esta orden no tiene WhatsApp válido')
+      return
+    }
+
+    const clientLink = `${window.location.origin}/o/${order.public_code}`
+
+    const text =
+      `Hola ${order.customer_name || ''}, te compartimos el estado de tu vehículo.\n\n` +
+      `Código: ${order.public_code}\n` +
+      `Estado: ${order.status}\n` +
+      `Servicio: ${order.summary || '-'}\n` +
+      `Link de seguimiento: ${clientLink}`
+
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank')
+  }
+
+  const filteredOrders = useMemo(() => {
+    const q = query.trim().toLowerCase()
+
+    if (!q) return orders
+
+    return orders.filter((order) => {
+      return (
+        order.public_code.toLowerCase().includes(q) ||
+        order.plate.toLowerCase().includes(q) ||
+        order.customer_name.toLowerCase().includes(q) ||
+        order.whatsapp.toLowerCase().includes(q) ||
+        order.summary.toLowerCase().includes(q)
+      )
+    })
+  }, [orders, query])
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">Órdenes</h1>
         <p className="text-zinc-400 mb-6">
-          Gestiona estados sin entrar a Supabase.
+          Gestiona estados, copia links y envía actualizaciones por WhatsApp.
         </p>
+
+        <div className="mb-6">
+          <input
+            placeholder="Buscar por FIN, placa, cliente, WhatsApp o servicio..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full md:w-[420px] p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
+          />
+        </div>
 
         <div className="overflow-x-auto rounded-xl border border-zinc-800">
           <table className="w-full text-sm">
@@ -81,13 +169,14 @@ export default function OrdersTable({
                 <th className="p-4">Vehículo</th>
                 <th className="p-4">Servicio</th>
                 <th className="p-4">Estado</th>
-                <th className="p-4">Link</th>
+                <th className="p-4">Cambiar</th>
+                <th className="p-4">Acciones</th>
               </tr>
             </thead>
 
             <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} className="border-t border-zinc-800">
+              {filteredOrders.map((order) => (
+                <tr key={order.id} className="border-t border-zinc-800 align-top">
                   <td className="p-4 font-semibold">{order.public_code}</td>
 
                   <td className="p-4">
@@ -103,7 +192,19 @@ export default function OrdersTable({
                   </td>
 
                   <td className="p-4 max-w-[320px]">
-                    <div className="truncate">{order.summary || '-'}</div>
+                    <div className="whitespace-normal break-words">
+                      {order.summary || '-'}
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
+                        order.status
+                      )}`}
+                    >
+                      {order.status.replace('_', ' ')}
+                    </span>
                   </td>
 
                   <td className="p-4">
@@ -126,22 +227,40 @@ export default function OrdersTable({
                   </td>
 
                   <td className="p-4">
-                    <a
-                      href={`/o/${order.public_code}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2"
-                    >
-                      Ver cliente
-                    </a>
+                    <div className="flex flex-col gap-2 min-w-[160px]">
+                      <a
+                        href={`/o/${order.public_code}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2"
+                      >
+                        Ver cliente
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => copyClientLink(order.public_code)}
+                        className="inline-flex justify-center rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2"
+                      >
+                        Copiar link
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openWhatsApp(order)}
+                        className="inline-flex justify-center rounded-lg bg-green-600 hover:bg-green-700 px-3 py-2"
+                      >
+                        Enviar WhatsApp
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
 
-              {orders.length === 0 && (
+              {filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-zinc-400">
-                    No hay órdenes registradas.
+                  <td colSpan={7} className="p-6 text-center text-zinc-400">
+                    No hay órdenes que coincidan con la búsqueda.
                   </td>
                 </tr>
               )}
