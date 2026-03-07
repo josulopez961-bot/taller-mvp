@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 
 function percent(status: string) {
@@ -9,7 +10,7 @@ function percent(status: string) {
     recibido: 10,
     diagnostico: 25,
     en_proceso: 50,
-    prueba: 75,
+    pruebas: 75,
     listo: 90,
     entregado: 100
   }
@@ -17,15 +18,8 @@ function percent(status: string) {
 }
 
 function barColor(status: string) {
-  const colorMap: Record<string, string> = {
-    recibido: '#6b7280',     // gris
-    diagnostico: '#94a3b8',  // gris azulado
-    en_proceso: '#f97316',   // naranja
-    prueba: '#8b5cf6',       // violeta
-    listo: '#3b82f6',        // azul
-    entregado: '#22c55e',    // verde
-  }
-  return colorMap[status] ?? '#6b7280'
+  // All steps use the brand blue
+  return '#2563EB'
 }
 
 function formatDate(dateStr?: string | null) {
@@ -95,11 +89,11 @@ export default function PublicOrderPage() {
     load()
   }, [code])
 
-  if (loading) return <div className="min-h-screen p-6 text-white bg-black">Cargando...</div>
+  if (loading) return <div className="min-h-screen p-6 text-white bg-[#050816]">Cargando...</div>
 
   if (err) {
     return (
-      <div className="min-h-screen p-6 text-white bg-black text-center">
+      <div className="min-h-screen p-6 text-white bg-[#050816] text-center">
         <h1 className="text-xl font-semibold text-red-500">Error al cargar</h1>
         <p className="mt-2 text-sm text-gray-400">{err}</p>
       </div>
@@ -108,7 +102,7 @@ export default function PublicOrderPage() {
 
   if (!order) {
     return (
-      <div className="min-h-screen p-6 text-white bg-black text-center">
+      <div className="min-h-screen p-6 text-white bg-[#050816] text-center">
         <h1 className="text-xl font-semibold">Orden no encontrada</h1>
         <p className="mt-2 text-sm text-gray-500">Por favor verifica el código enviado.</p>
       </div>
@@ -118,13 +112,20 @@ export default function PublicOrderPage() {
   const p = percent(order.status)
   const eta = formatDate(order?.estimated_ready_at)
   const lastUpdate = formatUpdateTime(order?.status_updated_at)
+  const vehicle = Array.isArray(order?.vehicles) ? order.vehicles[0] : order?.vehicles
 
   return (
-    <div className="min-h-screen p-6 text-white bg-black max-w-2xl mx-auto">
+    <div className="min-h-screen p-6 text-white bg-[#050816] max-w-2xl mx-auto">
       <header className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
-            <span className="text-lg font-bold">FC</span>
+          <div className="h-16 w-16 rounded-2xl border border-blue-900/40 bg-[#050816] flex items-center justify-center overflow-hidden">
+            <Image
+              src="/logo-finecar.png"
+              alt="Finecar"
+              width={64}
+              height={64}
+              className="object-contain"
+            />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Taller Finecar</h1>
@@ -135,7 +136,7 @@ export default function PublicOrderPage() {
 
       <main className="space-y-6">
         {/* Status Card */}
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+        <div className="rounded-3xl border border-blue-900/40 bg-white/5 p-6 backdrop-blur-sm">
           <div className="flex justify-between items-start mb-6">
             <div>
               <div className="text-xs font-medium text-gray-500 uppercase">Orden</div>
@@ -157,10 +158,10 @@ export default function PublicOrderPage() {
                   {order.status.replace('_', ' ')}
                 </div>
               </div>
-              <div className="text-3xl font-black opacity-20">{p}%</div>
+              <div className="text-3xl font-black text-orange-400">{p}%</div>
             </div>
 
-            <div className="h-4 w-full rounded-full bg-gray-900 border border-white/5 overflow-hidden">
+            <div className="h-4 w-full rounded-full bg-[#0F172A] border border-blue-900/20 overflow-hidden">
               <div
                 className="h-full rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)]"
                 style={{
@@ -183,7 +184,7 @@ export default function PublicOrderPage() {
             <a
               href={`https://wa.me/593995556084?text=Hola%20Josué,%20estoy%20consultando%20por%20mi%20orden%20${order.public_code}`}
               target="_blank"
-              className="flex items-center justify-center gap-3 rounded-2xl bg-[#25D366] px-6 py-4 text-white font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center justify-center gap-3 rounded-2xl bg-[#F97316] px-6 py-4 text-white font-bold hover:bg-[#EA580C] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-green-900/20"
             >
               <span className="text-xl">💬</span>
               Contactar Mantenimiento
@@ -191,7 +192,7 @@ export default function PublicOrderPage() {
             <a
               href={`https://wa.me/593995318519?text=Hola%20Patricio,%20estoy%20consultando%20por%20mi%20orden%20${order.public_code}`}
               target="_blank"
-              className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-white font-medium hover:bg-white/10 transition-all text-sm"
+              className="flex items-center justify-center gap-3 rounded-2xl border border-blue-900/40 bg-white/5 px-6 py-3 text-white font-medium hover:bg-white/10 transition-all text-sm"
             >
               👤 Contactar Gerencia
             </a>
@@ -199,30 +200,30 @@ export default function PublicOrderPage() {
         </div>
 
         {/* Vehicle Info */}
-        <div className="rounded-3xl border border-white/10 bg-gray-900/50 p-6">
+        <div className="rounded-3xl border border-blue-900/40 bg-gray-900/50 p-6">
           <div className="text-xs font-medium text-gray-500 uppercase mb-4">Vehículo en Taller</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
             <div>
               <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Placa</div>
-              <div className="text-lg font-bold text-white uppercase tracking-wider">{order.vehicles?.plate ?? '—'}</div>
+              <div className="text-lg font-bold text-white uppercase tracking-wider">{vehicle?.plate ?? '—'}</div>
             </div>
             <div>
               <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Modelo</div>
               <div className="text-lg font-bold text-white capitalize">
-                {(order.vehicles?.make && order.vehicles?.model)
-                  ? `${order.vehicles.make} ${order.vehicles.model}`
+                {(vehicle?.make && vehicle?.model)
+                  ? `${vehicle.make} ${vehicle.model}`
                   : '—'}
               </div>
             </div>
             <div className="hidden sm:block">
               <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Año</div>
-              <div className="text-lg font-bold text-white">{order.vehicles?.year ?? '—'}</div>
+              <div className="text-lg font-bold text-white">{vehicle?.year ?? '—'}</div>
             </div>
           </div>
         </div>
 
         {/* ETA Card */}
-        <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-orange-500/10 to-transparent p-6">
+        <div className="rounded-3xl border border-blue-900/40 bg-gradient-to-br from-[#F97316]/20 to-transparent p-6">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-orange-500 text-xl">🕒</span>
             <div className="text-xs font-medium text-gray-500 uppercase">Entrega Estimada</div>
@@ -241,3 +242,7 @@ export default function PublicOrderPage() {
     </div>
   )
 }
+
+
+
+

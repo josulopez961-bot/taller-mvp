@@ -117,17 +117,15 @@ export default function OrdersTable({
       return
     }
 
-    const clientLink = `${window.location.origin}/o/${order.public_code}`
+    const clientLink = `https://taller-mvp.vercel.app/o/${order.public_code}`
 
     const text =
-      `Hola ${order.customer_name || ''}, te compartimos el estado de tu vehículo.\n\n` +
-      `Código: ${order.public_code}\n` +
-      `Estado: ${order.status}\n` +
-      `Servicio: ${order.summary || '-'}\n` +
-      `Link de seguimiento: ${clientLink}`
+      `Hola, tu vehículo está siendo atendido en el taller.\n\n` +
+      `Puedes ver el estado aquí:\n${clientLink}`
 
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
+  }
   }
 
   const filteredOrders = useMemo(() => {
@@ -307,3 +305,5 @@ export default function OrdersTable({
     </div>
   )
 }
+
+

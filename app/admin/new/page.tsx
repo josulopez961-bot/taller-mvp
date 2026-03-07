@@ -50,7 +50,7 @@ export default function NewOrderPage() {
         return
       }
 
-      const link = `${window.location.origin}/o/${data.code}`
+      const link = `https://taller-mvp.vercel.app/o/${data.code}`
 
       try {
         await navigator.clipboard.writeText(link)
@@ -137,3 +137,4 @@ export default function NewOrderPage() {
     </div>
   )
 }
+
