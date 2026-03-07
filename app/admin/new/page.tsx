@@ -1,140 +1,230 @@
-﻿'use client'
+﻿"use client";
 
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type FormState = {
-  plate: string
-  customer_name: string
-  whatsapp: string
-  make: string
-  model: string
-  year: string
-  summary: string
-}
+  plate: string;
+  customer_name: string;
+  whatsapp: string;
+  make: string;
+  model: string;
+  year: string;
+  summary: string;
+  estimated_delivery_date: string;
+  diagnosis_detail: string;
+  repair_detail: string;
+  repair_cost: string;
+};
 
 const initialForm: FormState = {
-  plate: '',
-  customer_name: '',
-  whatsapp: '',
-  make: '',
-  model: '',
-  year: '',
-  summary: '',
-}
+  plate: "",
+  customer_name: "",
+  whatsapp: "",
+  make: "",
+  model: "",
+  year: "",
+  summary: "",
+  estimated_delivery_date: "",
+  diagnosis_detail: "",
+  repair_detail: "",
+  repair_cost: "",
+};
 
-export default function NewOrderPage() {
-  const router = useRouter()
+export default function AdminNewOrderPage() {
+  const router = useRouter();
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState<FormState>(initialForm)
-  const [loading, setLoading] = useState(false)
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) {
+    const { name, value } = e.target;
 
-  function updateField(key: keyof FormState, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   }
 
-  async function createOrder() {
-    setLoading(true)
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch('/api/admin/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
+      const response = await fetch("/api/admin/orders/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          plate: form.plate.trim().toUpperCase(),
+          customer_name: form.customer_name.trim(),
+          whatsapp: form.whatsapp.trim(),
+          make: form.make.trim() || null,
+          model: form.model.trim() || null,
+          year: form.year ? Number(form.year) : null,
+          summary: form.summary.trim() || null,
+          estimated_delivery_date: form.estimated_delivery_date || null,
+          diagnosis_detail: form.diagnosis_detail.trim() || null,
+          repair_detail: form.repair_detail.trim() || null,
+          repair_cost: form.repair_cost ? Number(form.repair_cost) : null,
+        }),
+      });
 
-      const data = await res.json()
+      const data = await response.json();
 
-      if (!res.ok) {
-        alert(data.error || 'No se pudo crear la orden')
-        return
+      if (!response.ok) {
+        alert(data.error || "No se pudo crear la orden");
+        return;
       }
 
-      const link = `https://taller-mvp.vercel.app/o/${data.code}`
+      if (data.publicUrl) {
+        try {
+          await navigator.clipboard.writeText(data.publicUrl);
+        } catch {
+          console.warn("No se pudo copiar el link automáticamente");
+        }
+      }
 
-      try {
-        await navigator.clipboard.writeText(link)
-      } catch {}
-
-      setForm(initialForm)
-      router.push('/admin/orders')
-    } catch {
-      alert('Error al crear la orden')
+      router.push("/admin/orders");
+      router.refresh();
+    } catch (error) {
+      console.error("CREATE_ORDER_FORM_ERROR", error);
+      alert("Ocurrió un error al crear la orden");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white px-6 py-10">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-3xl font-bold mb-2">Nueva Orden</h1>
-        <p className="text-zinc-400 mb-8">
-          Registra el vehículo y crea la orden rápidamente.
+    <div className="min-h-screen bg-[#050816] text-white p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">Nueva orden</h1>
+        <p className="mt-2 text-sm text-slate-400">
+          Crea una orden rápida y deja listo el detalle para aprobación del
+          cliente.
         </p>
+      </div>
 
-        <div className="grid gap-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          name="plate"
+          placeholder="Placa"
+          value={form.plate}
+          onChange={handleChange}
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+          required
+        />
+
+        <input
+          name="customer_name"
+          placeholder="Nombre del cliente"
+          value={form.customer_name}
+          onChange={handleChange}
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+          required
+        />
+
+        <input
+          name="whatsapp"
+          placeholder="WhatsApp"
+          value={form.whatsapp}
+          onChange={handleChange}
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+          required
+        />
+
+        <div className="grid gap-4 md:grid-cols-3">
           <input
-            className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
-            placeholder="Placa"
-            value={form.plate}
-            onChange={(e) => updateField('plate', e.target.value.toUpperCase())}
+            name="make"
+            placeholder="Marca"
+            value={form.make}
+            onChange={handleChange}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
           />
 
           <input
-            className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
-            placeholder="Nombre del cliente"
-            value={form.customer_name}
-            onChange={(e) => updateField('customer_name', e.target.value)}
+            name="model"
+            placeholder="Modelo"
+            value={form.model}
+            onChange={handleChange}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
           />
 
           <input
-            className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
-            placeholder="WhatsApp"
-            value={form.whatsapp}
-            onChange={(e) => updateField('whatsapp', e.target.value)}
+            name="year"
+            type="number"
+            placeholder="Año"
+            value={form.year}
+            onChange={handleChange}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
           />
+        </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            <input
-              className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
-              placeholder="Marca"
-              value={form.make}
-              onChange={(e) => updateField('make', e.target.value)}
-            />
+        <textarea
+          name="summary"
+          placeholder="Resumen del servicio"
+          value={form.summary}
+          onChange={handleChange}
+          className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+        />
 
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">
+              Fecha estimada de entrega
+            </label>
             <input
-              className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
-              placeholder="Modelo"
-              value={form.model}
-              onChange={(e) => updateField('model', e.target.value)}
-            />
-
-            <input
-              className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 outline-none focus:border-green-500"
-              placeholder="Año"
-              value={form.year}
-              onChange={(e) => updateField('year', e.target.value)}
+              name="estimated_delivery_date"
+              type="date"
+              value={form.estimated_delivery_date}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             />
           </div>
 
-          <textarea
-            className="p-3 rounded-lg bg-zinc-900 border border-zinc-700 min-h-[140px] outline-none focus:border-green-500"
-            placeholder="Servicio / detalle"
-            value={form.summary}
-            onChange={(e) => updateField('summary', e.target.value)}
-          />
-
-          <button
-            onClick={createOrder}
-            disabled={loading}
-            className="bg-green-600 hover:bg-green-700 disabled:opacity-60 px-6 py-3 rounded-lg font-semibold"
-          >
-            {loading ? 'Creando...' : 'Crear Orden'}
-          </button>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">
+              Costo estimado de reparación
+            </label>
+            <input
+              name="repair_cost"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={form.repair_cost}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
         </div>
-      </div>
+
+        <textarea
+          name="diagnosis_detail"
+          placeholder="Detalle del diagnóstico"
+          value={form.diagnosis_detail}
+          onChange={handleChange}
+          className="min-h-[130px] w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+        />
+
+        <textarea
+          name="repair_detail"
+          placeholder="Detalle de reparación a realizar"
+          value={form.repair_detail}
+          onChange={handleChange}
+          className="min-h-[130px] w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+        >
+          {loading ? "Creando..." : "Crear orden"}
+        </button>
+      </form>
     </div>
-  )
+  );
 }
 

@@ -7,6 +7,7 @@ const supabase = createClient(
 )
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function AdminOrdersPage() {
   const { data: orders, error } = await supabase
@@ -17,6 +18,11 @@ export default async function AdminOrdersPage() {
       status,
       summary,
       created_at,
+      estimated_delivery_date,
+      diagnosis_detail,
+      repair_detail,
+      repair_cost,
+      approval_status,
       vehicles (
         plate,
         make,
@@ -51,6 +57,11 @@ export default async function AdminOrdersPage() {
         status: order.status,
         summary: order.summary,
         created_at: order.created_at,
+        estimated_delivery_date: order.estimated_delivery_date,
+        diagnosis_detail: order.diagnosis_detail,
+        repair_detail: order.repair_detail,
+        repair_cost: order.repair_cost,
+        approval_status: order.approval_status,
         plate: vehicle?.plate || '',
         make: vehicle?.make || '',
         model: vehicle?.model || '',
@@ -61,3 +72,5 @@ export default async function AdminOrdersPage() {
 
   return <OrdersTable initialOrders={normalizedOrders} />
 }
+
+

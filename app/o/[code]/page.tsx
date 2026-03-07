@@ -1,248 +1,315 @@
-﻿'use client'
+﻿import { createClient } from "@supabase/supabase-js";
+import ApprovalActions from "./ApprovalActions";
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-function percent(status: string) {
-  const progressMap: Record<string, number> = {
-    recibido: 10,
-    diagnostico: 25,
-    en_proceso: 50,
-    pruebas: 75,
-    listo: 90,
-    entregado: 100
-  }
-  return progressMap[status] ?? 0
+const ORDER_STEPS = [
+  { key: "recibido", label: "Recibido" },
+  { key: "diagnostico", label: "Diagnóstico" },
+  { key: "en_proceso", label: "Reparación" },
+  { key: "pruebas", label: "Pruebas" },
+  { key: "listo", label: "Listo" },
+  { key: "entregado", label: "Entregado" },
+] as const;
+
+function normalizeStatus(status?: string | null) {
+  if (!status) return "recibido";
+  if (status === "prueba") return "pruebas";
+  return status;
 }
 
-function barColor(status: string) {
-  // All steps use the brand blue
-  return '#2563EB'
+function getStepIndex(status?: string | null) {
+  const normalized = normalizeStatus(status);
+  const index = ORDER_STEPS.findIndex((step) => step.key === normalized);
+  return index === -1 ? 0 : index;
 }
 
-function formatDate(dateStr?: string | null) {
-  if (!dateStr) return null
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return null
-  return new Intl.DateTimeFormat('es-EC', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-  }).format(d)
+function getStatusLabel(status?: string | null) {
+  const normalized = normalizeStatus(status);
+  const found = ORDER_STEPS.find((step) => step.key === normalized);
+  return found?.label || normalized;
 }
 
-function formatUpdateTime(dateStr?: string | null) {
-  if (!dateStr) return null
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return null
-  return new Intl.DateTimeFormat('es-EC', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d)
-}
-
-export default function PublicOrderPage() {
-  const params = useParams()
-  const raw = (params as any)?.code
-  const code = Array.isArray(raw) ? raw[0] : raw
-
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState<string | null>(null)
-  const [order, setOrder] = useState<any>(null)
-
-  useEffect(() => {
-    async function load() {
-      if (!code) return
-
-      const cleanCode = (code || '').trim()
-
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          public_code,
-          status,
-          summary,
-          estimated_ready_at,
-          status_updated_at,
-          vehicles (
-            plate,
-            make,
-            model,
-            year
-          )
-        `)
-        .eq('public_code', cleanCode)
-        .maybeSingle()
-
-      if (error) {
-        setErr(error.message)
-      } else {
-        setOrder(data)
-      }
-      setLoading(false)
-    }
-
-    load()
-  }, [code])
-
-  if (loading) return <div className="min-h-screen p-6 text-white bg-[#050816]">Cargando...</div>
-
-  if (err) {
+function getApprovalBadge(approvalStatus?: string | null) {
+  if (approvalStatus === "aprobado") {
     return (
-      <div className="min-h-screen p-6 text-white bg-[#050816] text-center">
-        <h1 className="text-xl font-semibold text-red-500">Error al cargar</h1>
-        <p className="mt-2 text-sm text-gray-400">{err}</p>
-      </div>
-    )
+      <span className="rounded-full border border-green-700 bg-green-900/30 px-3 py-1 text-xs font-semibold text-green-300">
+        Autorizado
+      </span>
+    );
   }
 
-  if (!order) {
+  if (approvalStatus === "rechazado") {
     return (
-      <div className="min-h-screen p-6 text-white bg-[#050816] text-center">
-        <h1 className="text-xl font-semibold">Orden no encontrada</h1>
-        <p className="mt-2 text-sm text-gray-500">Por favor verifica el código enviado.</p>
-      </div>
-    )
+      <span className="rounded-full border border-red-700 bg-red-900/30 px-3 py-1 text-xs font-semibold text-red-300">
+        No autorizado
+      </span>
+    );
   }
-
-  const p = percent(order.status)
-  const eta = formatDate(order?.estimated_ready_at)
-  const lastUpdate = formatUpdateTime(order?.status_updated_at)
-  const vehicle = Array.isArray(order?.vehicles) ? order.vehicles[0] : order?.vehicles
 
   return (
-    <div className="min-h-screen p-6 text-white bg-[#050816] max-w-2xl mx-auto">
-      <header className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-2xl border border-blue-900/40 bg-[#050816] flex items-center justify-center overflow-hidden">
-            <Image
-              src="/logo-finecar.png"
-              alt="Finecar"
-              width={64}
-              height={64}
-              className="object-contain"
-            />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Taller Finecar</h1>
-            <p className="text-xs text-white/40 uppercase tracking-widest">Premium Service Tracking</p>
-          </div>
-        </div>
-      </header>
+    <span className="rounded-full border border-yellow-700 bg-yellow-900/30 px-3 py-1 text-xs font-semibold text-yellow-300">
+      Pendiente de autorización
+    </span>
+  );
+}
 
-      <main className="space-y-6">
-        {/* Status Card */}
-        <div className="rounded-3xl border border-blue-900/40 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="flex justify-between items-start mb-6">
+export default async function OrderPublicPage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  const { code } = await params;
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      public_code,
+      status,
+      summary,
+      created_at,
+      estimated_delivery_date,
+      diagnosis_detail,
+      repair_detail,
+      repair_cost,
+      approval_status,
+      vehicle:vehicles (
+        plate,
+        make,
+        model,
+        year,
+        customer:customers (
+          full_name,
+          whatsapp
+        )
+      )
+    `)
+    .eq("public_code", code)
+    .single();
+
+  if (error || !order) {
+    return (
+      <main className="min-h-screen bg-slate-950 p-8 text-white">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <h1 className="text-2xl font-bold">Orden no encontrada</h1>
+          <p className="mt-2 text-slate-300">
+            No se pudo cargar la orden solicitada.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const vehicle = Array.isArray(order.vehicle) ? order.vehicle[0] : order.vehicle;
+  const customer =
+    vehicle && "customer" in vehicle
+      ? Array.isArray(vehicle.customer)
+        ? vehicle.customer[0]
+        : vehicle.customer
+      : null;
+
+  const normalizedStatus = normalizeStatus(order.status);
+  const currentStepIndex = getStepIndex(normalizedStatus);
+  const currentStatusLabel = getStatusLabel(normalizedStatus);
+
+  const showDiagnosticSection =
+    normalizedStatus === "diagnostico" ||
+    normalizedStatus === "en_proceso" ||
+    normalizedStatus === "pruebas" ||
+    normalizedStatus === "listo" ||
+    normalizedStatus === "entregado";
+
+  return (
+    <main className="min-h-screen bg-slate-950 text-white">
+      <div className="mx-auto max-w-5xl space-y-6 p-6">
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <h1 className="text-3xl font-bold">Seguimiento de orden</h1>
+          <p className="mt-2 text-slate-300">
+            Código:{" "}
+            <span className="font-semibold text-orange-400">
+              {order.public_code}
+            </span>
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="text-xs font-medium text-gray-500 uppercase">Orden</div>
-              <div className="text-xl font-mono font-bold text-white">{order.public_code}</div>
+              <h2 className="text-xl font-bold">Progreso del vehículo</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Estado actual:{" "}
+                <span className="font-semibold text-orange-400">
+                  {currentStatusLabel}
+                </span>
+              </p>
             </div>
-            {lastUpdate && (
-              <div className="text-right">
-                <div className="text-xs font-medium text-gray-500 uppercase">Actualizado</div>
-                <div className="text-xs font-medium text-gray-300">{lastUpdate}</div>
-              </div>
+
+            {normalizedStatus === "diagnostico" && (
+              <div>{getApprovalBadge(order.approval_status)}</div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <div>
-                <div className="text-xs font-medium text-gray-500 uppercase mb-1">Estado Actual</div>
-                <div className="text-2xl font-bold capitalize" style={{ color: barColor(order.status) }}>
-                  {order.status.replace('_', ' ')}
-                </div>
+          <div className="mt-6 overflow-x-auto">
+            <div className="min-w-[760px]">
+              <div className="relative flex items-center justify-between">
+                <div className="absolute left-0 right-0 top-5 h-1 rounded-full bg-slate-800" />
+
+                <div
+                  className="absolute left-0 top-5 h-1 rounded-full bg-orange-500 transition-all"
+                  style={{
+                    width: `${(currentStepIndex / (ORDER_STEPS.length - 1)) * 100}%`,
+                  }}
+                />
+
+                {ORDER_STEPS.map((step, index) => {
+                  const isCompleted = index < currentStepIndex;
+                  const isCurrent = index === currentStepIndex;
+
+                  return (
+                    <div
+                      key={step.key}
+                      className="relative z-10 flex w-28 flex-col items-center text-center"
+                    >
+                      <div
+                        className={[
+                          "flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold transition-all",
+                          isCurrent
+                            ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/30"
+                            : isCompleted
+                            ? "border-orange-400 bg-orange-400 text-slate-950"
+                            : "border-slate-700 bg-slate-900 text-slate-400",
+                        ].join(" ") || ""}
+                      >
+                        {index + 1}
+                      </div>
+
+                      <div className="mt-3">
+                        <p
+                          className={[
+                            "text-sm font-medium",
+                            isCurrent
+                              ? "text-white"
+                              : isCompleted
+                              ? "text-slate-200"
+                              : "text-slate-500",
+                          ].join(" ") || ""}
+                        >
+                          {step.label}
+                        </p>
+
+                        <p
+                          className={[
+                            "mt-1 text-xs",
+                            isCurrent
+                              ? "text-orange-400"
+                              : isCompleted
+                              ? "text-slate-400"
+                              : "text-slate-600",
+                          ].join(" ") || ""}
+                        >
+                          {isCurrent
+                            ? "En curso"
+                            : isCompleted
+                            ? "Completado"
+                            : "Pendiente"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="text-3xl font-black text-orange-400">{p}%</div>
-            </div>
-
-            <div className="h-4 w-full rounded-full bg-[#0F172A] border border-blue-900/20 overflow-hidden">
-              <div
-                className="h-full rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)]"
-                style={{
-                  width: `${p}%`,
-                  background: barColor(order.status),
-                  transition: 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                }}
-              />
             </div>
           </div>
+        </section>
 
-          <div className="mt-8 pt-6 border-t border-white/5">
-            <div className="text-xs font-medium text-gray-500 uppercase mb-2">Detalles del Proceso</div>
-            <div className="text-gray-300 leading-relaxed">
-              {order.summary ?? 'El equipo técnico está trabajando en su vehículo. Pronto habrá más detalles.'}
-            </div>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="text-xl font-bold">Vehículo</h2>
+          <div className="mt-4 grid gap-3 text-slate-300 md:grid-cols-2">
+            <p>
+              <span className="font-semibold text-white">Placa:</span>{" "}
+              {vehicle?.plate || "-"}
+            </p>
+            <p>
+              <span className="font-semibold text-white">Marca:</span>{" "}
+              {vehicle?.make || "-"}
+            </p>
+            <p>
+              <span className="font-semibold text-white">Modelo:</span>{" "}
+              {vehicle?.model || "-"}
+            </p>
+            <p>
+              <span className="font-semibold text-white">Año:</span>{" "}
+              {vehicle?.year || "-"}
+            </p>
+            <p>
+              <span className="font-semibold text-white">Cliente:</span>{" "}
+              {customer?.full_name || "-"}
+            </p>
+            <p>
+              <span className="font-semibold text-white">WhatsApp:</span>{" "}
+              {customer?.whatsapp || "-"}
+            </p>
           </div>
-          
-          <div className="mt-8 flex flex-col gap-3">
-            <a
-              href={`https://wa.me/593995556084?text=Hola%20Josué,%20estoy%20consultando%20por%20mi%20orden%20${order.public_code}`}
-              target="_blank"
-              className="flex items-center justify-center gap-3 rounded-2xl bg-[#F97316] px-6 py-4 text-white font-bold hover:bg-[#EA580C] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-green-900/20"
-            >
-              <span className="text-xl">💬</span>
-              Contactar Mantenimiento
-            </a>
-            <a
-              href={`https://wa.me/593995318519?text=Hola%20Patricio,%20estoy%20consultando%20por%20mi%20orden%20${order.public_code}`}
-              target="_blank"
-              className="flex items-center justify-center gap-3 rounded-2xl border border-blue-900/40 bg-white/5 px-6 py-3 text-white font-medium hover:bg-white/10 transition-all text-sm"
-            >
-              👤 Contactar Gerencia
-            </a>
-          </div>
-        </div>
+        </section>
 
-        {/* Vehicle Info */}
-        <div className="rounded-3xl border border-blue-900/40 bg-gray-900/50 p-6">
-          <div className="text-xs font-medium text-gray-500 uppercase mb-4">Vehículo en Taller</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-            <div>
-              <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Placa</div>
-              <div className="text-lg font-bold text-white uppercase tracking-wider">{vehicle?.plate ?? '—'}</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Modelo</div>
-              <div className="text-lg font-bold text-white capitalize">
-                {(vehicle?.make && vehicle?.model)
-                  ? `${vehicle.make} ${vehicle.model}`
-                  : '—'}
-              </div>
-            </div>
-            <div className="hidden sm:block">
-              <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Año</div>
-              <div className="text-lg font-bold text-white">{vehicle?.year ?? '—'}</div>
-            </div>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="text-xl font-bold">Estado actual</h2>
+          <div className="mt-4 space-y-3 text-slate-300">
+            <p>
+              <span className="font-semibold text-white">Estado:</span>{" "}
+              {currentStatusLabel}
+            </p>
+            <p>
+              <span className="font-semibold text-white">Resumen:</span>{" "}
+              {order.summary || "Sin resumen"}
+            </p>
           </div>
-        </div>
+        </section>
 
-        {/* ETA Card */}
-        <div className="rounded-3xl border border-blue-900/40 bg-gradient-to-br from-[#F97316]/20 to-transparent p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-orange-500 text-xl">🕒</span>
-            <div className="text-xs font-medium text-gray-500 uppercase">Entrega Estimada</div>
-          </div>
-          {eta ? (
-            <div className="text-2xl font-black capitalize text-orange-500 drop-shadow-sm">{eta}</div>
-          ) : (
-            <div className="text-lg font-medium text-gray-400">Nuestro equipo confirmará la entrega pronto.</div>
-          )}
-        </div>
-      </main>
+        {showDiagnosticSection && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-xl font-bold">Diagnóstico y presupuesto</h2>
+              {getApprovalBadge(order.approval_status)}
+            </div>
 
-      <footer className="mt-12 text-center text-[10px] text-white/20 uppercase tracking-[0.2em] pb-8">
-        © {new Date().getFullYear()} Taller Finecar • Servicio de Excelencia
-      </footer>
-    </div>
-  )
+            <div className="mt-4 space-y-3 text-slate-300">
+              <p>
+                <span className="font-semibold text-white">
+                  Fecha estimada de entrega:
+                </span>{" "}
+                {order.estimated_delivery_date || "Por definir"}
+              </p>
+              <p>
+                <span className="font-semibold text-white">Diagnóstico:</span>{" "}
+                {order.diagnosis_detail || "Aún no cargado"}
+              </p>
+              <p>
+                <span className="font-semibold text-white">
+                  Reparación propuesta:
+                </span>{" "}
+                {order.repair_detail || "Aún no cargada"}
+              </p>
+              <p>
+                <span className="font-semibold text-white">Costo estimado:</span>{" "}
+                {order.repair_cost !== null && order.repair_cost !== undefined
+                  ? `$${order.repair_cost}`
+                  : "Por definir"}
+              </p>
+            </div>
+
+            <ApprovalActions
+              publicCode={order.public_code}
+              approvalStatus={order.approval_status}
+              orderStatus={normalizedStatus}
+            />
+          </section>
+        )}
+      </div>
+    </main>
+  );
 }
-
-
-
-
