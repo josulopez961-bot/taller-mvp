@@ -129,6 +129,7 @@ export default function OrdersTable({
                     <a
                       href={`/o/${order.public_code}`}
                       target="_blank"
+                      rel="noreferrer"
                       className="inline-flex rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2"
                     >
                       Ver cliente
