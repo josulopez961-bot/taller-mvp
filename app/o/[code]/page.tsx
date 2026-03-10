@@ -1,4 +1,4 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import ApprovalActions from "./ApprovalActions";
 
 const supabase = createClient(
@@ -91,14 +91,21 @@ export default async function OrderPublicPage({
     .eq("public_code", code)
     .single();
 
-  const { data: items } = await supabase
+  const { data: quoteItems } = await supabase
     .from("order_quote_items")
     .select("*")
-    .eq("order_id", order?.id);
+    .eq("order_id", order?.id)
+    .order("id", { ascending: true });
 
-  const labor = (items || []).filter(i => i.category === "labor");
-  const parts = (items || []).filter(i => i.category === "part");
-  const supplies = (items || []).filter(i => i.category === "supply");
+  const laborItems = (quoteItems || []).filter((i) => i.category === "labor");
+  const partItems = (quoteItems || []).filter((i) => i.category === "part");
+  const supplyItems = (quoteItems || []).filter((i) => i.category === "supply");
+
+  const laborTotal = laborItems.reduce((a, i) => a + Number(i.subtotal), 0);
+  const partsTotal = partItems.reduce((a, i) => a + Number(i.subtotal), 0);
+  const supplyTotal = supplyItems.reduce((a, i) => a + Number(i.subtotal), 0);
+
+  const total = laborTotal + partsTotal + supplyTotal;
 
   if (error || !order) {
     return (
@@ -311,15 +318,15 @@ export default async function OrderPublicPage({
               </p>
             </div>
 
-            {items && items.length > 0 && (
+            {quoteItems && quoteItems.length > 0 && (
               <div className="mt-4 border-t border-slate-700 pt-4">
                 <h3 className="mb-2 text-lg font-semibold text-white">Desglose de Cotización</h3>
                 
-                {labor.length > 0 && (
+                {laborItems.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-medium text-orange-400">Mano de Obra</h4>
                     <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                      {labor.map((i: any) => (
+                      {laborItems.map((i: any) => (
                         <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
                           <span>{i.qty}x {i.description}</span>
                           <span className="font-medium">${i.unit_price * i.qty}</span>
@@ -329,11 +336,11 @@ export default async function OrderPublicPage({
                   </div>
                 )}
                 
-                {parts.length > 0 && (
+                {partItems.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-medium text-orange-400">Repuestos</h4>
                     <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                      {parts.map((i: any) => (
+                      {partItems.map((i: any) => (
                         <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
                           <span>{i.qty}x {i.description}</span>
                           <span className="font-medium">${i.unit_price * i.qty}</span>
@@ -343,11 +350,11 @@ export default async function OrderPublicPage({
                   </div>
                 )}
                 
-                {supplies.length > 0 && (
+                {supplyItems.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-medium text-orange-400">Insumos</h4>
                     <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                      {supplies.map((i: any) => (
+                      {supplyItems.map((i: any) => (
                         <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
                           <span>{i.qty}x {i.description}</span>
                           <span className="font-medium">${i.unit_price * i.qty}</span>

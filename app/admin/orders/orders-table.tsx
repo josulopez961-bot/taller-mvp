@@ -480,74 +480,6 @@ export default function OrdersTable({
             </p>
           </div>
 
-          <div className="pt-4 border-t border-slate-700">
-            <h3 className="mb-3 text-sm font-semibold text-white">Desglose de Cotización (Opcional)</h3>
-            {items.map((item, idx) => (
-              <div key={idx} className="flex gap-2 mb-2 items-center">
-                <select
-                  value={item.category}
-                  onChange={(e) => {
-                    const newItems = [...items];
-                    newItems[idx].category = e.target.value;
-                    setItems(newItems);
-                  }}
-                  className="rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
-                >
-                  <option value="labor">Mano de Obra</option>
-                  <option value="part">Repuesto</option>
-                  <option value="supply">Insumo</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Descripción"
-                  value={item.description}
-                  onChange={(e) => {
-                    const newItems = [...items];
-                    newItems[idx].description = e.target.value;
-                    setItems(newItems);
-                  }}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
-                />
-                <input
-                  type="number"
-                  placeholder="Cant"
-                  value={item.qty}
-                  onChange={(e) => {
-                    const newItems = [...items];
-                    newItems[idx].qty = Number(e.target.value);
-                    setItems(newItems);
-                  }}
-                  className="w-16 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
-                />
-                <input
-                  type="number"
-                  placeholder="Precio"
-                  value={item.unit_price}
-                  onChange={(e) => {
-                    const newItems = [...items];
-                    newItems[idx].unit_price = Number(e.target.value);
-                    setItems(newItems);
-                  }}
-                  className="w-20 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setItems(items.filter((_, i) => i !== idx))}
-                  className="text-red-500 hover:text-red-400 font-bold px-2"
-                >
-                  X
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setItems([...items, { category: "part", description: "", qty: 1, unit_price: 0 }])}
-              className="mt-2 text-sm font-semibold text-orange-400 hover:text-orange-300"
-            >
-              + Agregar Item
-            </button>
-          </div>
-
           <div className="flex gap-3">
             <Link
               href="/admin/new"
@@ -710,6 +642,7 @@ export default function OrdersTable({
     </div>
   )
 }
+
 
 
 
