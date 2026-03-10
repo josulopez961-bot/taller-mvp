@@ -41,6 +41,11 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
   const [loading, setLoading] = useState(false);
 
   const [items, setItems] = useState<any[]>([]);
+  const totalFromItems = items.reduce((acc, item) => {
+    const qty = Number(item.qty || 0)
+    const price = Number(item.unit_price || 0)
+    return acc + qty * price
+  }, 0)
   const [form, setForm] = useState({
     estimated_delivery_date: order.estimated_delivery_date || "",
     diagnosis_detail: order.diagnosis_detail || "",
@@ -77,7 +82,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
           estimated_delivery_date: form.estimated_delivery_date || null,
           diagnosis_detail: form.diagnosis_detail.trim() || null,
           repair_detail: form.repair_detail.trim() || null,
-          repair_cost: form.repair_cost ? Number(form.repair_cost) : null,
+          repair_cost: totalFromItems,
         }),
       });
 
@@ -204,20 +209,13 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">
-              Costo estimado
+              Costo estimado (auto-calculado)
             </label>
             <input
               type="number"
-              step="0.01"
-              value={form.repair_cost}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  repair_cost: e.target.value,
-                }))
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
-              placeholder="0.00"
+              value={totalFromItems}
+              readOnly
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none"
             />
           </div>
 
