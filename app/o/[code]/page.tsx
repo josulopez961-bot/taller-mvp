@@ -91,6 +91,15 @@ export default async function OrderPublicPage({
     .eq("public_code", code)
     .single();
 
+  const { data: items } = await supabase
+    .from("order_quote_items")
+    .select("*")
+    .eq("order_id", order?.id);
+
+  const labor = (items || []).filter(i => i.category === "labor");
+  const parts = (items || []).filter(i => i.category === "part");
+  const supplies = (items || []).filter(i => i.category === "supply");
+
   if (error || !order) {
     return (
       <main className="min-h-screen bg-slate-950 p-8 text-white">
@@ -302,6 +311,54 @@ export default async function OrderPublicPage({
               </p>
             </div>
 
+            {items && items.length > 0 && (
+              <div className="mt-4 border-t border-slate-700 pt-4">
+                <h3 className="mb-2 text-lg font-semibold text-white">Desglose de Cotización</h3>
+                
+                {labor.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-orange-400">Mano de Obra</h4>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-300">
+                      {labor.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
+                          <span>{i.qty}x {i.description}</span>
+                          <span className="font-medium">${i.unit_price * i.qty}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {parts.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-orange-400">Repuestos</h4>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-300">
+                      {parts.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
+                          <span>{i.qty}x {i.description}</span>
+                          <span className="font-medium">${i.unit_price * i.qty}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {supplies.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-orange-400">Insumos</h4>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-300">
+                      {supplies.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
+                          <span>{i.qty}x {i.description}</span>
+                          <span className="font-medium">${i.unit_price * i.qty}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <ApprovalActions
               publicCode={order.public_code}
               approvalStatus={order.approval_status}
@@ -313,3 +370,4 @@ export default async function OrderPublicPage({
     </main>
   );
 }
+
