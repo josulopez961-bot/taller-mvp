@@ -23,11 +23,16 @@ export default async function AdminOrdersPage() {
       repair_detail,
       repair_cost,
       approval_status,
+      vehicle_id,
+      current_km,
+      generate_maintenance_plan,
+      service_interval_km,
       vehicles (
         plate,
         make,
         model,
         customers (
+          id,
           full_name,
           whatsapp
         )
@@ -65,12 +70,16 @@ export default async function AdminOrdersPage() {
         plate: vehicle?.plate || '',
         make: vehicle?.make || '',
         model: vehicle?.model || '',
+        customer_id: customer?.id || null,
         customer_name: customer?.full_name || '',
         whatsapp: customer?.whatsapp || '',
+        vehicle_id: order.vehicle_id,
+        current_km: order.current_km,
+        generate_maintenance_plan: order.generate_maintenance_plan,
+        service_interval_km: order.service_interval_km,
       }
     }) || []
 
   return <OrdersTable initialOrders={normalizedOrders} />
 }
-
 

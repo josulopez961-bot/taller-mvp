@@ -18,7 +18,7 @@ export async function PATCH(
       estimated_delivery_date,
       diagnosis_detail,
       repair_detail,
-      repair_cost,
+      repair_cost, current_km, generate_maintenance_plan, service_interval_km,
     } = body;
 
     if (!id) {
@@ -31,11 +31,12 @@ export async function PATCH(
         estimated_delivery_date: estimated_delivery_date || null,
         diagnosis_detail: diagnosis_detail || null,
         repair_detail: repair_detail || null,
+        current_km: current_km || null,
         repair_cost:
           repair_cost === "" || repair_cost === null || repair_cost === undefined
             ? null
             : Number(repair_cost),
-        approval_status: "pendiente",
+        approval_status: "pendiente", generate_maintenance_plan: generate_maintenance_plan || false, service_interval_km: service_interval_km || 5000,
       })
       .eq("id", id);
 
@@ -52,3 +53,5 @@ export async function PATCH(
     );
   }
 }
+
+

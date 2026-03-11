@@ -40,6 +40,9 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [generateMaintenance, setGenerateMaintenance] = useState(false);
+  const [intervalKm, setIntervalKm] = useState(5000);
+  const [currentKm, setCurrentKm] = useState(order.current_km || 0);
   const [items, setItems] = useState<any[]>([]);
   const totalFromItems = items.reduce((acc, item) => {
     const qty = Number(item.qty || 0)
@@ -83,12 +86,17 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
           diagnosis_detail: form.diagnosis_detail.trim() || null,
           repair_detail: form.repair_detail.trim() || null,
           repair_cost: totalFromItems,
+          current_km: currentKm,
+          generate_maintenance_plan: generateMaintenance,
+          service_interval_km: intervalKm,
         }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
+
+
+        if (!res.ok) {
         alert(data.error || "No se pudo guardar el diagnóstico");
         return;
       }
@@ -219,6 +227,38 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             />
           </div>
 
+          <div style={{ marginTop: "16px" }}>
+            <label style={{ display: "block", marginBottom: "8px" }} className="text-sm font-medium text-slate-300">
+              KM actual
+            </label>
+            <input
+              type="number"
+              placeholder="KM actual"
+              value={currentKm}
+              onChange={(e) => setCurrentKm(Number(e.target.value))}
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
+            />
+          </div>
+
+          <div style={{marginTop:"20px"}}>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={generateMaintenance}
+                onChange={(e)=>setGenerateMaintenance(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-orange-500"
+              />
+              <span className="text-sm font-medium text-slate-300">Generar próximo mantenimiento</span>
+            </label>
+            <br/>
+            <input
+              type="number"
+              placeholder="Intervalo mantenimiento km"
+              value={intervalKm}
+              onChange={(e)=>setIntervalKm(Number(e.target.value))}
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
+            />
+          </div>
           <div className="pt-4 border-t border-slate-700">
             <h3 className="mb-3 text-sm font-semibold text-white">Desglose de Cotización (Opcional)</h3>
             {items.map((item, idx) => (
@@ -325,8 +365,13 @@ type OrderItem = {
   plate: string
   make: string
   model: string
+  customer_id?: string | null
   customer_name: string
   whatsapp: string
+  vehicle_id: string
+  current_km: number
+  generate_maintenance_plan: boolean
+  service_interval_km: number
 }
 
 const STATUS_OPTIONS = [
@@ -381,10 +426,92 @@ export default function OrdersTable({
   const [query, setQuery] = useState('')
   const [openNotesId, setOpenNotesId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
+  const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
+  const [maintenanceServiceName, setMaintenanceServiceName] = useState("Próximo mantenimiento");
+  const [maintenanceItems, setMaintenanceItems] = useState([
+    { category: "labor", description: "Cambio de aceite", qty: 1, unit_price: 10 },
+    { category: "part", description: "Filtro de aceite", qty: 1, unit_price: 5 },
+    { category: "supply", description: "Aceite 10W40", qty: 4, unit_price: 8 },
+  ]);
+
+  const nextServiceKm = selectedOrderForMaintenance?.current_km && selectedOrderForMaintenance?.service_interval_km 
+    ? selectedOrderForMaintenance.current_km + selectedOrderForMaintenance.service_interval_km 
+    : 0;
+
+    const visibleFromKm = nextServiceKm ? nextServiceKm - 200 : 0;
+
+  const maintenanceLaborTotal = maintenanceItems
+    .filter((item) => item.category === "labor")
+    .reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.unit_price || 0), 0);
+
+  const maintenancePartsTotal = maintenanceItems
+    .filter((item) => item.category === "part")
+    .reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.unit_price || 0), 0);
+
+  const maintenanceSuppliesTotal = maintenanceItems
+    .filter((item) => item.category === "supply")
+    .reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.unit_price || 0), 0);
+
+  const maintenanceGrandTotal =
+    maintenanceLaborTotal + maintenancePartsTotal + maintenanceSuppliesTotal;
+
+  function updateMaintenanceItem(index: number, patch: Partial<{ category: "labor" | "part" | "supply"; description: string; qty: number; unit_price: number }>) {
+    setMaintenanceItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)) );
+  }
+
+  function addMaintenanceItem() {
+    setMaintenanceItems((prev) => [ ...prev, { category: "labor", description: "", qty: 1, unit_price: 0 }, ]);
+  }
+
+  function removeMaintenanceItem(index: number) {
+    setMaintenanceItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSaveNextMaintenance() {
+    if (!selectedOrderForMaintenance) return;
+    const res = await fetch("/api/admin/maintenance-plans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        vehicle_id: selectedOrderForMaintenance.vehicle_id,
+        customer_id: null, // We should ideally get this if available
+        source_order_id: selectedOrderForMaintenance.id,
+        service_name: maintenanceServiceName,
+        last_service_km: selectedOrderForMaintenance.current_km,
+        service_interval_km: selectedOrderForMaintenance.service_interval_km,
+        items: maintenanceItems,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "No se pudo guardar el próximo mantenimiento");
+      return;
+    }
+
+    setShowNextMaintenanceModal(false);
+    setSelectedOrderForMaintenance(null);
+    alert("Próximo mantenimiento guardado correctamente");
+  }
 
   async function updateStatus(orderId: string, newStatus: string) {
     const targetOrder = orders.find((o) => o.id === orderId);
     if (!targetOrder) return;
+
+    if (
+      newStatus === "listo" &&
+      targetOrder.generate_maintenance_plan &&
+      targetOrder.current_km &&
+      targetOrder.service_interval_km
+    ) {
+      setSelectedOrderForMaintenance(targetOrder);
+      setShowNextMaintenanceModal(true);
+      return;
+    }
 
     if (newStatus === "en_proceso" && targetOrder.approval_status !== "aprobado") {
       alert("Primero debe estar autorizado por el cliente.");
@@ -410,7 +537,9 @@ export default function OrdersTable({
 
       const data = await res.json()
 
-      if (!res.ok) {
+
+
+        if (!res.ok) {
         setOrders(previous)
         alert(data.error || 'No se pudo actualizar el estado')
       }
@@ -636,18 +765,113 @@ export default function OrdersTable({
             </tbody>
           </table>
         </div>
+
+      {showNextMaintenanceModal && selectedOrderForMaintenance && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "#111827", color: "white", width: "90%", maxWidth: "900px", borderRadius: "12px", padding: "24px", maxHeight: "90vh", overflowY: "auto" }}>
+            <h2 className="text-xl font-bold mb-4">Próximo mantenimiento</h2>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+               <p>KM actual: <strong>{selectedOrderForMaintenance.current_km}</strong></p>
+               <p>Intervalo: <strong>{selectedOrderForMaintenance.service_interval_km} km</strong></p>
+               <p>Próximo mantenimiento: <strong>{nextServiceKm} km</strong></p>
+               <p>Visible desde: <strong>{visibleFromKm} km</strong></p>
+            </div>
+
+            <label className="block text-sm font-medium mb-1">Nombre del servicio</label>
+            <input 
+              value={maintenanceServiceName} 
+              onChange={(e) => setMaintenanceServiceName(e.target.value)} 
+              placeholder="Nombre del servicio" 
+              style={{ width: "100%", padding: "10px", marginTop: "4px", marginBottom: "16px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px" }}
+            />
+
+            <div style={{ marginBottom: "16px" }}>
+              <button 
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg font-semibold"
+                onClick={addMaintenanceItem}
+              >
+                + Agregar item
+              </button>
+            </div>
+
+                        <div className="space-y-2">
+              {maintenanceItems.map((item, index) => (
+                <div key={index} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 100px 40px", gap: "10px" }}>
+                  <select 
+                    value={item.category} 
+                    onChange={(e) => updateMaintenanceItem(index, { category: e.target.value as "labor" | "part" | "supply", }) }
+                    style={{ background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", padding:"8px" }}
+                  >
+                    <option value="labor">Mano de obra</option>
+                    <option value="part">Repuesto</option>
+                    <option value="supply">Insumo</option>
+                  </select>
+                  <input 
+                    value={item.description} 
+                    onChange={(e) => updateMaintenanceItem(index, { description: e.target.value })} 
+                    placeholder="Descripción" 
+                    style={{ background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", padding:"8px" }}
+                  />
+                  <input 
+                    type="number" 
+                    value={item.qty} 
+                    onChange={(e) => updateMaintenanceItem(index, { qty: Number(e.target.value) })} 
+                    placeholder="Qty" 
+                    style={{ background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", padding:"8px" }}
+                  />
+                  <input 
+                    type="number" 
+                    value={item.unit_price} 
+                    onChange={(e) => updateMaintenanceItem(index, { unit_price: Number(e.target.value) })} 
+                    placeholder="Precio" 
+                    style={{ background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", padding:"8px" }}
+                  />
+                  <button 
+                    onClick={() => removeMaintenanceItem(index)}
+                    className="text-red-500 font-bold"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{
+              marginTop: "20px",
+              padding: "16px",
+              border: "1px solid #334155",
+              borderRadius: "10px",
+              background: "#0f172a"
+            }}>
+              <p><strong>Mano de obra:</strong> ${maintenanceLaborTotal.toFixed(2)}</p>
+              <p><strong>Repuestos:</strong> ${maintenancePartsTotal.toFixed(2)}</p>
+              <p><strong>Insumos:</strong> ${maintenanceSuppliesTotal.toFixed(2)}</p>
+              <p style={{ fontSize: "18px", marginTop: "10px" }}>
+                <strong>Total estimado:</strong> ${maintenanceGrandTotal.toFixed(2)}
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+              <button 
+                onClick={handleSaveNextMaintenance}
+                className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-xl font-bold flex-1"
+              >
+                Guardar próximo mantenimiento
+              </button>
+              <button 
+                onClick={() => { setShowNextMaintenanceModal(false); setSelectedOrderForMaintenance(null); }}
+                className="bg-zinc-700 hover:bg-zinc-600 px-6 py-3 rounded-xl font-bold"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )
 }
-
-
-
-
-
-
-
-
 
 
 
