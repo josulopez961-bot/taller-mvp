@@ -44,6 +44,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
   const [intervalKm, setIntervalKm] = useState(5000);
   const [currentKm, setCurrentKm] = useState(order.current_km || 0);
   const [items, setItems] = useState<any[]>([]);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   const totalFromItems = items.reduce((acc, item) => {
     const qty = Number(item.qty || 0)
     const price = Number(item.unit_price || 0)
@@ -67,6 +68,34 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
       form.repair_cost
     );
   }, [form]);
+
+  // Cargar items existentes de order_quote_items cuando se abre el panel
+  useEffect(() => {
+    if (!open || itemsLoaded) return;
+    async function loadQuoteItems() {
+      try {
+        const res = await fetch(`/api/admin/orders/${order.id}/quote-items`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setItems(
+              data.map((item: any) => ({
+                category: item.category,
+                description: item.description,
+                qty: Number(item.qty),
+                unit_price: Number(item.unit_price),
+              }))
+            );
+          }
+        }
+      } catch (e) {
+        console.error("Error loading quote items", e);
+      } finally {
+        setItemsLoaded(true);
+      }
+    }
+    loadQuoteItems();
+  }, [open, order.id, itemsLoaded]);
 
   if (!isDiagnostic) {
     return null;
@@ -872,6 +901,7 @@ export default function OrdersTable({
     </div>
   )
 }
+
 
 
 

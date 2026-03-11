@@ -1,10 +1,41 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID de orden invalido" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("order_quote_items")
+      .select("*")
+      .eq("order_id", id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data ?? []);
+  } catch (error) {
+    console.error("QUOTE_ITEMS_GET_ERROR", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(
   req: Request,
@@ -15,11 +46,11 @@ export async function POST(
     const { items } = await req.json();
 
     if (!id) {
-      return NextResponse.json({ error: "ID de orden inválido" }, { status: 400 });
+      return NextResponse.json({ error: "ID de orden invalido" }, { status: 400 });
     }
 
     if (!Array.isArray(items)) {
-      return NextResponse.json({ error: "Items inválidos" }, { status: 400 });
+      return NextResponse.json({ error: "Items invalidos" }, { status: 400 });
     }
 
     await supabase
