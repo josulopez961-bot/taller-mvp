@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import ApprovalActions from "./ApprovalActions";
+import MaintenanceAlert from "./MaintenanceAlert";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,6 +78,7 @@ export default async function OrderPublicPage({
       repair_detail,
       repair_cost,
       approval_status,
+      vehicle_id,
       vehicle:vehicles (
         plate,
         make,
@@ -96,6 +98,29 @@ export default async function OrderPublicPage({
     .select("*")
     .eq("order_id", order?.id)
     .order("id", { ascending: true });
+
+  // Planes de mantenimiento para el vehículo de esta orden
+  const { data: maintenancePlans } = order?.vehicle_id
+    ? await supabase
+        .from("maintenance_plans")
+        .select(`
+          id,
+          service_name,
+          last_service_km,
+          next_service_km,
+          visible_from_km,
+          status,
+          maintenance_plan_items (
+            category,
+            description,
+            qty,
+            unit_price
+          )
+        `)
+        .eq("vehicle_id", (order as any).vehicle_id)
+        .eq("status", "scheduled")
+        .order("next_service_km", { ascending: true })
+    : { data: [] };
 
   const laborItems = (quoteItems || []).filter((i) => i.category === "labor");
   const partItems = (quoteItems || []).filter((i) => i.category === "part");
@@ -136,8 +161,7 @@ export default async function OrderPublicPage({
     normalizedStatus === "diagnostico" ||
     normalizedStatus === "en_proceso" ||
     normalizedStatus === "pruebas" ||
-    normalizedStatus === "listo" ||
-    normalizedStatus === "entregado";
+    normalizedStatus === "listo";
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -158,7 +182,7 @@ export default async function OrderPublicPage({
               <h2 className="text-xl font-bold">Progreso del vehículo</h2>
               <p className="mt-1 text-sm text-slate-400">
                 Estado actual:{" "}
-                <span className="font-semibold text-orange-400">
+                <span className={`font-semibold ${normalizedStatus === "entregado" ? "text-green-400" : "text-orange-400"}`}>
                   {currentStatusLabel}
                 </span>
               </p>
@@ -175,7 +199,9 @@ export default async function OrderPublicPage({
                 <div className="absolute left-0 right-0 top-5 h-1 rounded-full bg-slate-800" />
 
                 <div
-                  className="absolute left-0 top-5 h-1 rounded-full bg-orange-500 transition-all"
+                  className={`absolute left-0 top-5 h-1 rounded-full transition-all ${
+                    normalizedStatus === "entregado" ? "bg-green-500" : "bg-orange-500"
+                  }`}
                   style={{
                     width: `${(currentStepIndex / (ORDER_STEPS.length - 1)) * 100}%`,
                   }}
@@ -184,6 +210,7 @@ export default async function OrderPublicPage({
                 {ORDER_STEPS.map((step, index) => {
                   const isCompleted = index < currentStepIndex;
                   const isCurrent = index === currentStepIndex;
+                  const isEntregado = normalizedStatus === "entregado";
 
                   return (
                     <div
@@ -193,7 +220,9 @@ export default async function OrderPublicPage({
                       <div
                         className={[
                           "flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold transition-all",
-                          isCurrent
+                          isCurrent && isEntregado
+                            ? "border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/30"
+                            : isCurrent
                             ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/30"
                             : isCompleted
                             ? "border-orange-400 bg-orange-400 text-slate-950"
@@ -207,11 +236,7 @@ export default async function OrderPublicPage({
                         <p
                           className={[
                             "text-sm font-medium",
-                            isCurrent
-                              ? "text-white"
-                              : isCompleted
-                              ? "text-slate-200"
-                              : "text-slate-500",
+                            isCurrent ? "text-white" : isCompleted ? "text-slate-200" : "text-slate-500",
                           ].join(" ") || ""}
                         >
                           {step.label}
@@ -220,14 +245,18 @@ export default async function OrderPublicPage({
                         <p
                           className={[
                             "mt-1 text-xs",
-                            isCurrent
+                            isCurrent && isEntregado
+                              ? "text-green-400"
+                              : isCurrent
                               ? "text-orange-400"
                               : isCompleted
                               ? "text-slate-400"
                               : "text-slate-600",
                           ].join(" ") || ""}
                         >
-                          {isCurrent
+                          {isCurrent && isEntregado
+                            ? "Finalizado"
+                            : isCurrent
                             ? "En curso"
                             : isCompleted
                             ? "Completado"
@@ -272,19 +301,42 @@ export default async function OrderPublicPage({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="text-xl font-bold">Estado actual</h2>
-          <div className="mt-4 space-y-3 text-slate-300">
-            <p>
-              <span className="font-semibold text-white">Estado:</span>{" "}
-              {currentStatusLabel}
-            </p>
-            <p>
-              <span className="font-semibold text-white">Resumen:</span>{" "}
-              {order.summary || "Sin resumen"}
-            </p>
-          </div>
-        </section>
+        {normalizedStatus !== "entregado" && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <h2 className="text-xl font-bold">Estado actual</h2>
+            <div className="mt-4 space-y-3 text-slate-300">
+              <p>
+                <span className="font-semibold text-white">Estado:</span>{" "}
+                {currentStatusLabel}
+              </p>
+              <p>
+                <span className="font-semibold text-white">Resumen:</span>{" "}
+                {order.summary || "Sin resumen"}
+              </p>
+            </div>
+          </section>
+        )}
+
+        {maintenancePlans && maintenancePlans.length > 0 && (
+          <MaintenanceAlert
+            plans={maintenancePlans.map((p: any) => ({
+              id: p.id,
+              service_name: p.service_name,
+              last_service_km: p.last_service_km,
+              next_service_km: p.next_service_km,
+              visible_from_km: p.visible_from_km,
+              status: p.status,
+              items: (p.maintenance_plan_items || []).map((i: any) => ({
+                category: i.category,
+                description: i.description,
+                qty: Number(i.qty),
+                unit_price: Number(i.unit_price),
+              })),
+            }))}
+            plate={vehicle?.plate || ''}
+            workshopWhatsapp={process.env.NEXT_PUBLIC_WORKSHOP_WHATSAPP || ''}
+          />
+        )}
 
         {showDiagnosticSection && (
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
