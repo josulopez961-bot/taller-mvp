@@ -26,6 +26,8 @@ export async function POST(req: Request) {
       last_service_km,
       service_interval_km,
       estimated_due_date,
+      prev_service_km,
+      prev_service_date,
       items = [],
     } = body;
 
@@ -79,6 +81,8 @@ export async function POST(req: Request) {
           next_service_km,
           visible_from_km,
           estimated_due_date: estimated_due_date || null,
+          prev_service_km: prev_service_km ?? null,
+          prev_service_date: prev_service_date ?? null,
           status: "scheduled",
         },
         {

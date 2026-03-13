@@ -64,6 +64,7 @@ export default async function RemindersPage() {
     .select(`
       id, service_name, last_service_km, next_service_km,
       service_interval_km, estimated_due_date, status,
+      prev_service_km, prev_service_date, source_order_id,
       vehicle:vehicles (
         id, plate, make, model,
         customer:customers ( full_name, whatsapp )
@@ -134,8 +135,22 @@ export default async function RemindersPage() {
         estimatedCurrentKm = Math.round(last.km + kmPerDay * daysSinceLast);
       }
     } else if (history.length === 1) {
-      // Solo un registro — usar ese km como base
-      estimatedCurrentKm = history[0].km;
+      const lastOrder = history[0];
+      // Usar km anterior del plan si está disponible para calcular km/día
+      if (plan.prev_service_km && plan.prev_service_date) {
+        const prevDate = new Date(plan.prev_service_date);
+        const daysDiff = (lastOrder.date.getTime() - prevDate.getTime()) / 86400000;
+        const kmDiff = lastOrder.km - plan.prev_service_km;
+        if (daysDiff > 0 && kmDiff > 0) {
+          kmPerDay = kmDiff / daysDiff;
+          const daysSinceLast = (today.getTime() - lastOrder.date.getTime()) / 86400000;
+          estimatedCurrentKm = Math.round(lastOrder.km + kmPerDay * daysSinceLast);
+        }
+      }
+      if (estimatedCurrentKm === null) {
+        // Sin referencia anterior — usar el km del orden como base
+        estimatedCurrentKm = lastOrder.km;
+      }
     }
 
     const kmRemaining = estimatedCurrentKm !== null

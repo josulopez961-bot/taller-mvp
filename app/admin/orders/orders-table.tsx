@@ -485,6 +485,8 @@ export default function OrdersTable({
   const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
   const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
   const [maintenanceServiceName, setMaintenanceServiceName] = useState("Próximo mantenimiento");
+  const [prevServiceKm, setPrevServiceKm] = useState<string>("");
+  const [prevServiceDate, setPrevServiceDate] = useState<string>("");
   const [maintenanceItems, setMaintenanceItems] = useState([
     { category: "labor", description: "Cambio de aceite", qty: 1, unit_price: 10 },
     { category: "part", description: "Filtro de aceite", qty: 1, unit_price: 5 },
@@ -533,11 +535,13 @@ export default function OrdersTable({
       },
       body: JSON.stringify({
         vehicle_id: selectedOrderForMaintenance.vehicle_id,
-        customer_id: null, // We should ideally get this if available
+        customer_id: null,
         source_order_id: selectedOrderForMaintenance.id,
         service_name: maintenanceServiceName,
         last_service_km: selectedOrderForMaintenance.current_km,
         service_interval_km: selectedOrderForMaintenance.service_interval_km,
+        prev_service_km: prevServiceKm ? Number(prevServiceKm) : null,
+        prev_service_date: prevServiceDate || null,
         items: maintenanceItems,
       }),
     });
@@ -551,6 +555,8 @@ export default function OrdersTable({
 
     setShowNextMaintenanceModal(false);
     setSelectedOrderForMaintenance(null);
+    setPrevServiceKm("");
+    setPrevServiceDate("");
     alert("Próximo mantenimiento guardado correctamente");
   }
 
@@ -883,12 +889,45 @@ export default function OrdersTable({
             </div>
 
             <label className="block text-sm font-medium mb-1">Nombre del servicio</label>
-            <input 
-              value={maintenanceServiceName} 
-              onChange={(e) => setMaintenanceServiceName(e.target.value)} 
-              placeholder="Nombre del servicio" 
+            <input
+              value={maintenanceServiceName}
+              onChange={(e) => setMaintenanceServiceName(e.target.value)}
+              placeholder="Nombre del servicio"
               style={{ width: "100%", padding: "10px", marginTop: "4px", marginBottom: "16px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px" }}
             />
+
+            <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "10px", padding: "16px", marginBottom: "16px" }}>
+              <p className="text-sm font-semibold text-slate-300 mb-3">Visita anterior (opcional — mejora el cálculo de km/día)</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">KM del servicio anterior</label>
+                  <input
+                    type="number"
+                    value={prevServiceKm}
+                    onChange={(e) => setPrevServiceKm(e.target.value)}
+                    placeholder="ej: 229002"
+                    style={{ width: "100%", padding: "8px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", color:"white" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Fecha del servicio anterior</label>
+                  <input
+                    type="date"
+                    value={prevServiceDate}
+                    onChange={(e) => setPrevServiceDate(e.target.value)}
+                    style={{ width: "100%", padding: "8px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", color:"white" }}
+                  />
+                </div>
+              </div>
+              {prevServiceKm && prevServiceDate && selectedOrderForMaintenance?.current_km && (
+                <p className="text-xs text-green-400 mt-2">
+                  ✓ km/día estimado: ~{Math.round(
+                    (selectedOrderForMaintenance.current_km - Number(prevServiceKm)) /
+                    Math.max(1, (new Date(selectedOrderForMaintenance.created_at ?? Date.now()).getTime() - new Date(prevServiceDate).getTime()) / 86400000)
+                  )} km/día
+                </p>
+              )}
+            </div>
 
             <div style={{ marginBottom: "16px" }}>
               <button 
