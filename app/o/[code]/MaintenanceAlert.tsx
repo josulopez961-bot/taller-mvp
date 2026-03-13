@@ -280,6 +280,11 @@ export default function MaintenanceAlert({
           Agendar mantenimiento por WhatsApp
         </button>
       )}
+
+      {/* Nota legal */}
+      <p className="mt-5 text-xs text-slate-500 border-t border-slate-800 pt-4 leading-relaxed">
+        Esta es una recomendación de mantenimiento basada en el historial del vehículo. Al momento de la revisión, el vehículo será inspeccionado íntegramente. En caso de encontrarse piezas defectuosas o componentes que requieran atención, estos serán incluidos en la proforma como valor adicional, previa aprobación del cliente.
+      </p>
     </section>
   )
 }

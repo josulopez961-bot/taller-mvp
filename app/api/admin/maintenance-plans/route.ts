@@ -6,6 +6,31 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const vehicle_id = searchParams.get("vehicle_id");
+  if (!vehicle_id) {
+    return NextResponse.json({ error: "vehicle_id requerido" }, { status: 400 });
+  }
+  const { data, error } = await supabase
+    .from("maintenance_plans")
+    .select("id, service_name, maintenance_plan_items ( category, description, qty, unit_price )")
+    .eq("vehicle_id", vehicle_id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+  if (error || !data) return NextResponse.json({ items: [] });
+  return NextResponse.json({
+    service_name: data.service_name,
+    items: (data.maintenance_plan_items || []).map((i: any) => ({
+      category: i.category,
+      description: i.description,
+      qty: Number(i.qty),
+      unit_price: Number(i.unit_price),
+    })),
+  });
+}
+
 type MaintenanceItem = {
   category: "labor" | "part" | "supply";
   description: string;

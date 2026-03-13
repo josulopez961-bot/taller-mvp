@@ -531,6 +531,19 @@ export default function OrdersTable({
     setMaintenanceItems((prev) => prev.filter((_, i) => i !== index));
   }
 
+  async function loadPreviousMaintenanceItems() {
+    if (!selectedOrderForMaintenance?.vehicle_id) return;
+    const res = await fetch(`/api/admin/maintenance-plans?vehicle_id=${selectedOrderForMaintenance.vehicle_id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.items && data.items.length > 0) {
+      setMaintenanceItems(data.items);
+      if (data.service_name) setMaintenanceServiceName(data.service_name);
+    } else {
+      alert("No se encontraron items de un mantenimiento anterior para este vehículo.");
+    }
+  }
+
   async function handleSaveNextMaintenance() {
     if (!selectedOrderForMaintenance) return;
     const res = await fetch("/api/admin/maintenance-plans", {
@@ -960,12 +973,18 @@ export default function OrdersTable({
               )}
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
-              <button 
+            <div style={{ marginBottom: "16px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button
                 className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg font-semibold"
                 onClick={addMaintenanceItem}
               >
                 + Agregar item
+              </button>
+              <button
+                className="bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded-lg font-semibold text-sm"
+                onClick={loadPreviousMaintenanceItems}
+              >
+                ↩ Cargar del mantenimiento anterior
               </button>
             </div>
 
