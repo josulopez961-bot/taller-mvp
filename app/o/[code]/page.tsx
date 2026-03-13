@@ -79,6 +79,7 @@ export default async function OrderPublicPage({
       repair_cost,
       approval_status,
       vehicle_id,
+      recommendations,
       vehicle:vehicles (
         plate,
         make,
@@ -98,6 +99,16 @@ export default async function OrderPublicPage({
     .select("*")
     .eq("order_id", order?.id)
     .order("id", { ascending: true });
+
+  // Fotos de entrega (solo si está entregado)
+  const { data: deliveryPhotos } = order?.id
+    ? await supabase
+        .from("order_photos")
+        .select("id, url")
+        .eq("order_id", order.id)
+        .eq("photo_type", "delivery")
+        .order("created_at", { ascending: true })
+    : { data: [] };
 
   // Planes de mantenimiento para el vehículo de esta orden
   const { data: maintenancePlans } = order?.vehicle_id
@@ -314,6 +325,49 @@ export default async function OrderPublicPage({
                 {order.summary || "Sin resumen"}
               </p>
             </div>
+          </section>
+        )}
+
+        {/* Comprobante de entrega */}
+        {normalizedStatus === "entregado" && (
+          <section className="rounded-2xl border border-emerald-800/40 bg-emerald-950/10 p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✅</span>
+              <div>
+                <h2 className="text-xl font-bold text-white">Vehículo entregado</h2>
+                <p className="text-sm text-emerald-400">Trabajo completado</p>
+              </div>
+            </div>
+
+            {(order as any).repair_detail && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">Trabajo realizado</p>
+                <p className="text-slate-300 text-sm">{(order as any).repair_detail}</p>
+              </div>
+            )}
+
+            {(order as any).recommendations && (
+              <div className="rounded-xl border border-emerald-800/40 bg-emerald-900/10 p-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">Recomendaciones del taller</p>
+                <p className="text-slate-300 text-sm">{(order as any).recommendations}</p>
+              </div>
+            )}
+
+            {deliveryPhotos && deliveryPhotos.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Fotos de entrega</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {deliveryPhotos.map((photo: any) => (
+                    <img
+                      key={photo.id}
+                      src={photo.url}
+                      alt="Foto de entrega"
+                      className="h-32 w-full rounded-xl object-cover border border-slate-700"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
 

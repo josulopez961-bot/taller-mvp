@@ -4,6 +4,7 @@ import { useMemo, useState, Fragment, useEffect } from 'react'
 import Link from 'next/link'
 import OrderNotes from './order-notes'
 import OrderPhotos from './order-photos'
+import OrderDelivery from './order-delivery'
 import { useRouter } from "next/navigation"
 
 type DiagnosisEditorProps = {
@@ -479,6 +480,7 @@ export default function OrdersTable({
   const [query, setQuery] = useState('')
   const [openNotesId, setOpenNotesId] = useState<string | null>(null)
   const [openPhotosId, setOpenPhotosId] = useState<string | null>(null)
+  const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
   const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
@@ -803,6 +805,18 @@ export default function OrdersTable({
                         >
                           {openPhotosId === order.id ? 'Ocultar fotos' : '📷 Recepción'}
                         </button>
+
+                        {(order.status === 'listo' || order.status === 'entregado') && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenDeliveryId((prev) => (prev === order.id ? null : order.id))
+                            }
+                            className="inline-flex justify-center rounded-lg bg-emerald-800 hover:bg-emerald-700 px-3 py-2"
+                          >
+                            {openDeliveryId === order.id ? 'Ocultar entrega' : '✅ Entrega'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -818,6 +832,13 @@ export default function OrdersTable({
                     <tr className="border-t border-zinc-800 bg-zinc-950/50">
                       <td colSpan={7} className="p-4">
                         <OrderPhotos orderId={order.id} />
+                      </td>
+                    </tr>
+                  )}
+                  {openDeliveryId === order.id && (
+                    <tr className="border-t border-zinc-800 bg-zinc-950/50">
+                      <td colSpan={7} className="p-4">
+                        <OrderDelivery orderId={order.id} />
                       </td>
                     </tr>
                   )}

@@ -6,18 +6,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// GET /api/admin/orders/[id]/photos
+// GET /api/admin/orders/[id]/photos?type=intake|delivery
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const type = searchParams.get("type");
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("order_photos")
-    .select("id, url, created_at")
+    .select("id, url, photo_type, created_at")
     .eq("order_id", id)
     .order("created_at", { ascending: true });
+
+  if (type) query = query.eq("photo_type", type);
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -35,13 +41,14 @@ export async function POST(
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
+  const photoType = (formData.get("photo_type") as string) || "intake";
 
   if (!file) {
     return NextResponse.json({ error: "No se recibió archivo" }, { status: 400 });
   }
 
   const ext = file.name.split(".").pop() || "jpg";
-  const storagePath = `${id}/${Date.now()}.${ext}`;
+  const storagePath = `${id}/${photoType}-${Date.now()}.${ext}`;
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = new Uint8Array(arrayBuffer);
@@ -65,8 +72,8 @@ export async function POST(
 
   const { data: photo, error: dbError } = await supabase
     .from("order_photos")
-    .insert({ order_id: id, url: publicUrl, storage_path: storagePath })
-    .select("id, url, created_at")
+    .insert({ order_id: id, url: publicUrl, storage_path: storagePath, photo_type: photoType })
+    .select("id, url, photo_type, created_at")
     .single();
 
   if (dbError) {
@@ -101,7 +108,6 @@ export async function DELETE(
   }
 
   await supabase.storage.from("order-photos").remove([photo.storage_path]);
-
   await supabase.from("order_photos").delete().eq("id", photoId);
 
   return NextResponse.json({ ok: true });
