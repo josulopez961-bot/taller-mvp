@@ -3,6 +3,7 @@
 import { useMemo, useState, Fragment, useEffect } from 'react'
 import Link from 'next/link'
 import OrderNotes from './order-notes'
+import OrderPhotos from './order-photos'
 import { useRouter } from "next/navigation"
 
 type DiagnosisEditorProps = {
@@ -454,6 +455,7 @@ export default function OrdersTable({
   }, [initialOrders])
   const [query, setQuery] = useState('')
   const [openNotesId, setOpenNotesId] = useState<string | null>(null)
+  const [openPhotosId, setOpenPhotosId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
   const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
@@ -763,6 +765,16 @@ export default function OrdersTable({
                         >
                           {openNotesId === order.id ? 'Ocultar notas' : 'Notas'}
                         </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenPhotosId((prev) => (prev === order.id ? null : order.id))
+                          }
+                          className="inline-flex justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2"
+                        >
+                          {openPhotosId === order.id ? 'Ocultar fotos' : '📷 Recepción'}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -771,6 +783,13 @@ export default function OrdersTable({
                     <tr className="border-t border-zinc-800 bg-zinc-950/50">
                       <td colSpan={7} className="p-4">
                         <OrderNotes orderId={order.id} />
+                      </td>
+                    </tr>
+                  )}
+                  {openPhotosId === order.id && (
+                    <tr className="border-t border-zinc-800 bg-zinc-950/50">
+                      <td colSpan={7} className="p-4">
+                        <OrderPhotos orderId={order.id} />
                       </td>
                     </tr>
                   )}
