@@ -664,12 +664,20 @@ export default function OrdersTable({
           </div>
 
           <div className="flex gap-3">
-            <Link
-              href="/admin/new"
-              className="inline-flex items-center justify-center rounded-lg bg-green-600 hover:bg-green-700 px-5 py-3 font-semibold"
-            >
-              + Nueva orden
-            </Link>
+            <div className="flex gap-2">
+              <Link
+                href="/admin/reminders"
+                className="inline-flex items-center justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-4 py-3 font-semibold text-sm"
+              >
+                🔔 Recordatorios
+              </Link>
+              <Link
+                href="/admin/new"
+                className="inline-flex items-center justify-center rounded-lg bg-green-600 hover:bg-green-700 px-5 py-3 font-semibold"
+              >
+                + Nueva orden
+              </Link>
+            </div>
           </div>
         </div>
 
