@@ -69,6 +69,7 @@ export async function POST(
       .map((item) => ({
         order_id: id,
         category: item.category,
+        priority: item.priority || 'urgente',
         description: String(item.description).trim(),
         qty: Number(item.qty || 1),
         unit_price: Number(item.unit_price || 0),

@@ -122,15 +122,15 @@ export default async function OrderPublicPage({
         .order("next_service_km", { ascending: true })
     : { data: [] };
 
-  const laborItems = (quoteItems || []).filter((i) => i.category === "labor");
-  const partItems = (quoteItems || []).filter((i) => i.category === "part");
-  const supplyItems = (quoteItems || []).filter((i) => i.category === "supply");
+  const urgentItems = (quoteItems || []).filter((i) => (i.priority || 'urgente') === 'urgente');
+  const recommendedItems = (quoteItems || []).filter((i) => i.priority === 'recomendado');
+  const optionalItems = (quoteItems || []).filter((i) => i.priority === 'opcional');
 
-  const laborTotal = laborItems.reduce((a, i) => a + Number(i.subtotal), 0);
-  const partsTotal = partItems.reduce((a, i) => a + Number(i.subtotal), 0);
-  const supplyTotal = supplyItems.reduce((a, i) => a + Number(i.subtotal), 0);
-
-  const total = laborTotal + partsTotal + supplyTotal;
+  const calcTotal = (items: any[]) => items.reduce((a, i) => a + Number(i.qty) * Number(i.unit_price), 0);
+  const urgentTotal = calcTotal(urgentItems);
+  const recommendedTotal = calcTotal(recommendedItems);
+  const optionalTotal = calcTotal(optionalItems);
+  const total = urgentTotal + recommendedTotal + optionalTotal;
 
   if (error || !order) {
     return (
@@ -371,50 +371,64 @@ export default async function OrderPublicPage({
             </div>
 
             {quoteItems && quoteItems.length > 0 && (
-              <div className="mt-4 border-t border-slate-700 pt-4">
-                <h3 className="mb-2 text-lg font-semibold text-white">Desglose de Cotización</h3>
-                
-                {laborItems.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="font-medium text-orange-400">Mano de Obra</h4>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                      {laborItems.map((i: any) => (
-                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
-                          <span>{i.qty}x {i.description}</span>
-                          <span className="font-medium">${i.unit_price * i.qty}</span>
+              <div className="mt-4 border-t border-slate-700 pt-4 space-y-4">
+                <h3 className="text-lg font-semibold text-white">Desglose de cotización</h3>
+
+                {urgentItems.length > 0 && (
+                  <div className="rounded-xl border border-red-800/50 bg-red-950/20 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-red-400 uppercase tracking-widest">🔴 Urgente</span>
+                      <span className="text-sm font-semibold text-red-300">${urgentTotal.toFixed(2)}</span>
+                    </div>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      {urgentItems.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800/50 pb-1">
+                          <span>{i.qty}× {i.description}</span>
+                          <span className="font-medium">${(Number(i.qty) * Number(i.unit_price)).toFixed(2)}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                
-                {partItems.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="font-medium text-orange-400">Repuestos</h4>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                      {partItems.map((i: any) => (
-                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
-                          <span>{i.qty}x {i.description}</span>
-                          <span className="font-medium">${i.unit_price * i.qty}</span>
+
+                {recommendedItems.length > 0 && (
+                  <div className="rounded-xl border border-orange-800/50 bg-orange-950/20 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-orange-400 uppercase tracking-widest">🟡 Recomendado</span>
+                      <span className="text-sm font-semibold text-orange-300">${recommendedTotal.toFixed(2)}</span>
+                    </div>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      {recommendedItems.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800/50 pb-1">
+                          <span>{i.qty}× {i.description}</span>
+                          <span className="font-medium">${(Number(i.qty) * Number(i.unit_price)).toFixed(2)}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                
-                {supplyItems.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="font-medium text-orange-400">Insumos</h4>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                      {supplyItems.map((i: any) => (
-                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800 pb-1">
-                          <span>{i.qty}x {i.description}</span>
-                          <span className="font-medium">${i.unit_price * i.qty}</span>
+
+                {optionalItems.length > 0 && (
+                  <div className="rounded-xl border border-slate-700 bg-slate-800/30 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">⚪ Opcional</span>
+                      <span className="text-sm font-semibold text-slate-400">${optionalTotal.toFixed(2)}</span>
+                    </div>
+                    <ul className="space-y-1 text-sm text-slate-400">
+                      {optionalItems.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-700/50 pb-1">
+                          <span>{i.qty}× {i.description}</span>
+                          <span className="font-medium">${(Number(i.qty) * Number(i.unit_price)).toFixed(2)}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
+
+                <div className="flex justify-between items-center pt-2 border-t border-slate-700">
+                  <span className="font-semibold text-white">Total estimado</span>
+                  <span className="text-xl font-bold text-orange-400">${total.toFixed(2)}</span>
+                </div>
               </div>
             )}
 

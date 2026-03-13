@@ -82,6 +82,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             setItems(
               data.map((item: any) => ({
                 category: item.category,
+                priority: item.priority || 'urgente',
                 description: item.description,
                 qty: Number(item.qty),
                 unit_price: Number(item.unit_price),
@@ -292,7 +293,26 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
           <div className="pt-4 border-t border-slate-700">
             <h3 className="mb-3 text-sm font-semibold text-white">Desglose de Cotización (Opcional)</h3>
             {items.map((item, idx) => (
-              <div key={idx} className="flex gap-2 mb-2 items-center">
+              <div key={idx} className="flex gap-2 mb-2 items-center flex-wrap">
+                <select
+                  value={item.priority || 'urgente'}
+                  onChange={(e) => {
+                    const newItems = [...items];
+                    newItems[idx].priority = e.target.value;
+                    setItems(newItems);
+                  }}
+                  className="rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
+                  style={{
+                    color:
+                      item.priority === 'urgente' ? '#f87171' :
+                      item.priority === 'recomendado' ? '#fb923c' :
+                      '#94a3b8'
+                  }}
+                >
+                  <option value="urgente">🔴 Urgente</option>
+                  <option value="recomendado">🟡 Recomendado</option>
+                  <option value="opcional">⚪ Opcional</option>
+                </select>
                 <select
                   value={item.category}
                   onChange={(e) => {
@@ -315,7 +335,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                     newItems[idx].description = e.target.value;
                     setItems(newItems);
                   }}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
+                  className="flex-1 min-w-[140px] rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
                 />
                 <input
                   type="number"
@@ -339,6 +359,9 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                   }}
                   className="w-20 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
                 />
+                <span className="text-xs text-slate-400 w-16 text-right">
+                  ${(Number(item.qty) * Number(item.unit_price)).toFixed(2)}
+                </span>
                 <button
                   type="button"
                   onClick={() => setItems(items.filter((_, i) => i !== idx))}
@@ -350,7 +373,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             ))}
             <button
               type="button"
-              onClick={() => setItems([...items, { category: "part", description: "", qty: 1, unit_price: 0 }])}
+              onClick={() => setItems([...items, { category: "part", priority: "urgente", description: "", qty: 1, unit_price: 0 }])}
               className="mt-2 text-sm font-semibold text-orange-400 hover:text-orange-300"
             >
               + Agregar Item
