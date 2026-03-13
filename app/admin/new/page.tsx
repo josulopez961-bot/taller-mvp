@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,11 +10,10 @@ type FormState = {
   make: string;
   model: string;
   year: string;
-  summary: string;
+  engine: string;
+  intake_km: string;
+  intake_reason: string;
   estimated_delivery_date: string;
-  diagnosis_detail: string;
-  repair_detail: string;
-  repair_cost: string;
 };
 
 const initialForm: FormState = {
@@ -24,12 +23,17 @@ const initialForm: FormState = {
   make: "",
   model: "",
   year: "",
-  summary: "",
+  engine: "",
+  intake_km: "",
+  intake_reason: "",
   estimated_delivery_date: "",
-  diagnosis_detail: "",
-  repair_detail: "",
-  repair_cost: "",
 };
+
+const inputClass =
+  "w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500";
+
+const sectionLabel =
+  "text-xs font-semibold uppercase tracking-widest text-orange-400 mb-3";
 
 export default function AdminNewOrderPage() {
   const router = useRouter();
@@ -40,11 +44,7 @@ export default function AdminNewOrderPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -54,9 +54,7 @@ export default function AdminNewOrderPage() {
     try {
       const response = await fetch("/api/admin/orders/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plate: form.plate.trim().toUpperCase(),
           customer_name: form.customer_name.trim(),
@@ -64,11 +62,10 @@ export default function AdminNewOrderPage() {
           make: form.make.trim() || null,
           model: form.model.trim() || null,
           year: form.year ? Number(form.year) : null,
-          summary: form.summary.trim() || null,
+          engine: form.engine.trim() || null,
+          intake_km: form.intake_km ? Number(form.intake_km) : null,
+          intake_reason: form.intake_reason.trim() || null,
           estimated_delivery_date: form.estimated_delivery_date || null,
-          diagnosis_detail: form.diagnosis_detail.trim() || null,
-          repair_detail: form.repair_detail.trim() || null,
-          repair_cost: form.repair_cost ? Number(form.repair_cost) : null,
         }),
       });
 
@@ -101,130 +98,126 @@ export default function AdminNewOrderPage() {
     <div className="min-h-screen bg-[#050816] text-white p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Nueva orden</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Crea una orden rápida y deja listo el detalle para aprobación del
-          cliente.
+        <p className="mt-1 text-sm text-slate-400">
+          Registra el ingreso en menos de 30 segundos.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="plate"
-          placeholder="Placa"
-          value={form.plate}
-          onChange={handleChange}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          required
-        />
+      <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
 
-        <input
-          name="customer_name"
-          placeholder="Nombre del cliente"
-          value={form.customer_name}
-          onChange={handleChange}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          required
-        />
-
-        <input
-          name="whatsapp"
-          placeholder="WhatsApp"
-          value={form.whatsapp}
-          onChange={handleChange}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          required
-        />
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <input
-            name="make"
-            placeholder="Marca"
-            value={form.make}
-            onChange={handleChange}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          />
-
-          <input
-            name="model"
-            placeholder="Modelo"
-            value={form.model}
-            onChange={handleChange}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          />
-
-          <input
-            name="year"
-            type="number"
-            placeholder="Año"
-            value={form.year}
-            onChange={handleChange}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-          />
-        </div>
-
-        <textarea
-          name="summary"
-          placeholder="Resumen del servicio"
-          value={form.summary}
-          onChange={handleChange}
-          className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Fecha estimada de entrega
-            </label>
+        {/* CLIENTE */}
+        <section>
+          <p className={sectionLabel}>Cliente</p>
+          <div className="space-y-3">
             <input
-              name="estimated_delivery_date"
-              type="date"
-              value={form.estimated_delivery_date}
+              name="customer_name"
+              placeholder="Nombre completo"
+              value={form.customer_name}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className={inputClass}
+              required
+            />
+            <input
+              name="whatsapp"
+              placeholder="WhatsApp (ej. 593999123456)"
+              value={form.whatsapp}
+              onChange={handleChange}
+              className={inputClass}
+              required
             />
           </div>
+        </section>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Costo estimado de reparación
-            </label>
+        {/* VEHÍCULO */}
+        <section>
+          <p className={sectionLabel}>Vehículo</p>
+          <div className="space-y-3">
             <input
-              name="repair_cost"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.repair_cost}
+              name="plate"
+              placeholder="Placa *"
+              value={form.plate}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className={inputClass}
+              required
             />
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+              <input
+                name="make"
+                placeholder="Marca"
+                value={form.make}
+                onChange={handleChange}
+                className={inputClass}
+              />
+              <input
+                name="model"
+                placeholder="Modelo"
+                value={form.model}
+                onChange={handleChange}
+                className={inputClass}
+              />
+              <input
+                name="year"
+                type="number"
+                placeholder="Año"
+                value={form.year}
+                onChange={handleChange}
+                className={inputClass}
+              />
+              <input
+                name="engine"
+                placeholder="Motor (ej. 2.0L)"
+                value={form.engine}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
           </div>
-        </div>
+        </section>
 
-        <textarea
-          name="diagnosis_detail"
-          placeholder="Detalle del diagnóstico"
-          value={form.diagnosis_detail}
-          onChange={handleChange}
-          className="min-h-[130px] w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-        />
-
-        <textarea
-          name="repair_detail"
-          placeholder="Detalle de reparación a realizar"
-          value={form.repair_detail}
-          onChange={handleChange}
-          className="min-h-[130px] w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-        />
+        {/* INGRESO */}
+        <section>
+          <p className={sectionLabel}>Ingreso</p>
+          <div className="space-y-3">
+            <textarea
+              name="intake_reason"
+              placeholder="Motivo de ingreso — lo que reporta el cliente (ej: ruido en suspensión, no carga batería)"
+              value={form.intake_reason}
+              onChange={handleChange}
+              className={`${inputClass} min-h-[90px]`}
+            />
+            <div className="grid gap-3 grid-cols-2">
+              <input
+                name="intake_km"
+                type="number"
+                placeholder="KM al ingreso"
+                value={form.intake_km}
+                onChange={handleChange}
+                className={inputClass}
+              />
+              <div>
+                <label className="mb-1 block text-xs text-slate-400">
+                  Fecha estimada de entrega
+                </label>
+                <input
+                  name="estimated_delivery_date"
+                  type="date"
+                  value={form.estimated_delivery_date}
+                  onChange={handleChange}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
 
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+          className="w-full rounded-xl bg-orange-500 px-5 py-4 font-semibold text-white text-lg transition hover:bg-orange-600 disabled:opacity-60"
         >
-          {loading ? "Creando..." : "Crear orden"}
+          {loading ? "Creando..." : "Crear orden →"}
         </button>
       </form>
     </div>
   );
 }
-

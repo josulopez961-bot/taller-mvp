@@ -21,11 +21,10 @@ export async function POST(req: Request) {
       make,
       model,
       year,
-      summary,
+      engine,
+      intake_km,
+      intake_reason,
       estimated_delivery_date,
-      diagnosis_detail,
-      repair_detail,
-      repair_cost,
     } = body;
 
     if (!plate || !customer_name || !whatsapp) {
@@ -103,6 +102,7 @@ export async function POST(req: Request) {
           make: make || null,
           model: model || null,
           year: year || null,
+          engine: engine || null,
         })
         .select("id")
         .single();
@@ -148,14 +148,9 @@ export async function POST(req: Request) {
         vehicle_id: vehicleId,
         public_code,
         status: "recibido",
-        summary: summary || null,
         estimated_delivery_date: estimated_delivery_date || null,
-        diagnosis_detail: diagnosis_detail || null,
-        repair_detail: repair_detail || null,
-        repair_cost:
-          repair_cost === "" || repair_cost === null || repair_cost === undefined
-            ? null
-            : Number(repair_cost),
+        intake_reason: intake_reason || null,
+        current_km: intake_km ? Number(intake_km) : null,
         approval_status: "pendiente",
       })
       .select("id, public_code")
