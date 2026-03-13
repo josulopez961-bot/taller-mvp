@@ -706,7 +706,12 @@ export default function OrdersTable({
                     </td>
 
                     <td className="p-4">
-                      <div>{order.plate || '-'}</div>
+                      <Link
+                        href={`/admin/vehicles/${encodeURIComponent(order.plate)}`}
+                        className="font-semibold text-orange-400 hover:underline"
+                      >
+                        {order.plate || '-'}
+                      </Link>
                       <div className="text-zinc-400 text-xs">
                         {[order.make, order.model].filter(Boolean).join(' ')}
                       </div>
