@@ -44,7 +44,10 @@ export default function OrderDelivery({ orderId }: { orderId: string }) {
         fd.append('file', file)
         fd.append('photo_type', 'delivery')
         const res = await fetch(`/api/admin/orders/${orderId}/photos`, { method: 'POST', body: fd })
-        if (res.ok) setPhotos((prev) => [...prev, await res.json()])
+        if (res.ok) {
+          const photo = await res.json()
+          setPhotos((prev) => [...prev, photo])
+        }
       }
     } finally {
       setUploading(false)
