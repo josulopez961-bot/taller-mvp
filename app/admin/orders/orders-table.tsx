@@ -487,14 +487,19 @@ export default function OrdersTable({
   const [maintenanceServiceName, setMaintenanceServiceName] = useState("Próximo mantenimiento");
   const [prevServiceKm, setPrevServiceKm] = useState<string>("");
   const [prevServiceDate, setPrevServiceDate] = useState<string>("");
+  const [modalIntervalKm, setModalIntervalKm] = useState<string>("");
   const [maintenanceItems, setMaintenanceItems] = useState([
     { category: "labor", description: "Cambio de aceite", qty: 1, unit_price: 10 },
     { category: "part", description: "Filtro de aceite", qty: 1, unit_price: 5 },
     { category: "supply", description: "Aceite 10W40", qty: 4, unit_price: 8 },
   ]);
 
-  const nextServiceKm = selectedOrderForMaintenance?.current_km && selectedOrderForMaintenance?.service_interval_km 
-    ? selectedOrderForMaintenance.current_km + selectedOrderForMaintenance.service_interval_km 
+  const effectiveIntervalKm = modalIntervalKm
+    ? Number(modalIntervalKm)
+    : (selectedOrderForMaintenance?.service_interval_km || 0);
+
+  const nextServiceKm = selectedOrderForMaintenance?.current_km && effectiveIntervalKm
+    ? selectedOrderForMaintenance.current_km + effectiveIntervalKm
     : 0;
 
     const visibleFromKm = nextServiceKm ? nextServiceKm - 200 : 0;
@@ -539,7 +544,7 @@ export default function OrdersTable({
         source_order_id: selectedOrderForMaintenance.id,
         service_name: maintenanceServiceName,
         last_service_km: selectedOrderForMaintenance.current_km,
-        service_interval_km: selectedOrderForMaintenance.service_interval_km,
+        service_interval_km: effectiveIntervalKm,
         prev_service_km: prevServiceKm ? Number(prevServiceKm) : null,
         prev_service_date: prevServiceDate || null,
         items: maintenanceItems,
@@ -557,6 +562,7 @@ export default function OrdersTable({
     setSelectedOrderForMaintenance(null);
     setPrevServiceKm("");
     setPrevServiceDate("");
+    setModalIntervalKm("");
     alert("Próximo mantenimiento guardado correctamente");
   }
 
@@ -831,6 +837,22 @@ export default function OrdersTable({
                             {openDeliveryId === order.id ? 'Ocultar entrega' : '✅ Entrega'}
                           </button>
                         )}
+
+                        {order.current_km && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedOrderForMaintenance(order);
+                              setModalIntervalKm(order.service_interval_km ? String(order.service_interval_km) : "");
+                              setPrevServiceKm("");
+                              setPrevServiceDate("");
+                              setShowNextMaintenanceModal(true);
+                            }}
+                            className="inline-flex justify-center rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-2 text-xs"
+                          >
+                            📅 Mantenimiento
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -882,10 +904,19 @@ export default function OrdersTable({
           <div style={{ background: "#111827", color: "white", width: "90%", maxWidth: "900px", borderRadius: "12px", padding: "24px", maxHeight: "90vh", overflowY: "auto" }}>
             <h2 className="text-xl font-bold mb-4">Próximo mantenimiento</h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
-               <p>KM actual: <strong>{selectedOrderForMaintenance.current_km}</strong></p>
-               <p>Intervalo: <strong>{selectedOrderForMaintenance.service_interval_km} km</strong></p>
-               <p>Próximo mantenimiento: <strong>{nextServiceKm} km</strong></p>
-               <p>Visible desde: <strong>{visibleFromKm} km</strong></p>
+               <p>KM actual: <strong>{selectedOrderForMaintenance.current_km?.toLocaleString()}</strong></p>
+               <div>
+                 <label className="block text-xs text-slate-400 mb-1">Intervalo (km)</label>
+                 <input
+                   type="number"
+                   value={modalIntervalKm || selectedOrderForMaintenance.service_interval_km || ""}
+                   onChange={(e) => setModalIntervalKm(e.target.value)}
+                   placeholder="ej: 5000"
+                   style={{ width: "100%", padding: "8px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", color:"white" }}
+                 />
+               </div>
+               <p>Próximo mantenimiento: <strong className="text-green-400">{nextServiceKm ? nextServiceKm.toLocaleString() + " km" : "—"}</strong></p>
+               <p className="text-slate-400 text-sm">Visible desde: {visibleFromKm ? visibleFromKm.toLocaleString() + " km" : "—"}</p>
             </div>
 
             <label className="block text-sm font-medium mb-1">Nombre del servicio</label>
@@ -1003,7 +1034,7 @@ export default function OrdersTable({
                 Guardar próximo mantenimiento
               </button>
               <button 
-                onClick={() => { setShowNextMaintenanceModal(false); setSelectedOrderForMaintenance(null); }}
+                onClick={() => { setShowNextMaintenanceModal(false); setSelectedOrderForMaintenance(null); setPrevServiceKm(""); setPrevServiceDate(""); setModalIntervalKm(""); }}
                 className="bg-zinc-700 hover:bg-zinc-600 px-6 py-3 rounded-xl font-bold"
               >
                 Cerrar
