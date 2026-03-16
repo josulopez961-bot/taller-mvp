@@ -41,6 +41,8 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [generateMaintenance, setGenerateMaintenance] = useState(false);
   const [intervalKm, setIntervalKm] = useState(5000);
@@ -99,6 +101,29 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
     }
     loadQuoteItems();
   }, [open, order.id, itemsLoaded]);
+
+  async function handleAiParse() {
+    if (!aiText.trim()) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/admin/ai-parse-diagnosis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: aiText }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Error al procesar con IA");
+        return;
+      }
+      setItems(data.items);
+      setAiText("");
+    } catch {
+      alert("Error de conexión con IA");
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   if (!isDiagnostic) {
     return null;
@@ -293,6 +318,27 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
           </div>
           <div className="pt-4 border-t border-slate-700">
             <h3 className="mb-3 text-sm font-semibold text-white">Desglose de Cotización (Opcional)</h3>
+
+            <div className="mb-4 rounded-xl border border-indigo-800 bg-indigo-950/40 p-3">
+              <label className="mb-1 block text-xs font-semibold text-indigo-300">
+                ✨ Describir en texto libre — la IA lo estructura
+              </label>
+              <textarea
+                value={aiText}
+                onChange={(e) => setAiText(e.target.value)}
+                placeholder="Ej: cambio aceite urgente filtro aceite recomendado bujias 4 unidades frenos delanteros necesario revisar llantas..."
+                className="w-full min-h-[80px] rounded-lg border border-indigo-700 bg-slate-900 p-2 text-sm text-white outline-none focus:border-indigo-400"
+              />
+              <button
+                type="button"
+                onClick={handleAiParse}
+                disabled={aiLoading || !aiText.trim()}
+                className="mt-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+              >
+                {aiLoading ? "Procesando..." : "✨ Estructurar con IA"}
+              </button>
+            </div>
+
             {items.map((item, idx) => (
               <div key={idx} className="flex gap-2 mb-2 items-center flex-wrap">
                 <select
@@ -306,13 +352,13 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                   style={{
                     color:
                       item.priority === 'urgente' ? '#f87171' :
-                      item.priority === 'recomendado' ? '#fb923c' :
-                      '#94a3b8'
+                      item.priority === 'recomendado' ? '#fbbf24' :
+                      '#4ade80'
                   }}
                 >
-                  <option value="urgente">🔴 Urgente</option>
-                  <option value="recomendado">🟡 Recomendado</option>
-                  <option value="opcional">⚪ Opcional</option>
+                  <option value="urgente">🔴 Mantenimiento necesario</option>
+                  <option value="recomendado">🟡 Puede dañarse - no urgente</option>
+                  <option value="opcional">🟢 Recomendado</option>
                 </select>
                 <select
                   value={item.category}

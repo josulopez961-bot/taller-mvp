@@ -431,7 +431,7 @@ export default async function OrderPublicPage({
                 {urgentItems.length > 0 && (
                   <div className="rounded-xl border border-red-800/50 bg-red-950/20 p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-red-400 uppercase tracking-widest">🔴 Urgente</span>
+                      <span className="text-sm font-bold text-red-400 uppercase tracking-widest">🔴 Mantenimiento necesario</span>
                       <span className="text-sm font-semibold text-red-300">${urgentTotal.toFixed(2)}</span>
                     </div>
                     <ul className="space-y-1 text-sm text-slate-300">
@@ -446,10 +446,10 @@ export default async function OrderPublicPage({
                 )}
 
                 {recommendedItems.length > 0 && (
-                  <div className="rounded-xl border border-orange-800/50 bg-orange-950/20 p-4">
+                  <div className="rounded-xl border border-yellow-800/50 bg-yellow-950/20 p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-orange-400 uppercase tracking-widest">🟡 Recomendado</span>
-                      <span className="text-sm font-semibold text-orange-300">${recommendedTotal.toFixed(2)}</span>
+                      <span className="text-sm font-bold text-yellow-400 uppercase tracking-widest">🟡 Puede dañarse - no urgente</span>
+                      <span className="text-sm font-semibold text-yellow-300">${recommendedTotal.toFixed(2)}</span>
                     </div>
                     <ul className="space-y-1 text-sm text-slate-300">
                       {recommendedItems.map((i: any) => (
@@ -463,12 +463,12 @@ export default async function OrderPublicPage({
                 )}
 
                 {optionalItems.length > 0 && (
-                  <div className="rounded-xl border border-slate-700 bg-slate-800/30 p-4">
+                  <div className="rounded-xl border border-green-800/50 bg-green-950/20 p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">⚪ Opcional</span>
-                      <span className="text-sm font-semibold text-slate-400">${optionalTotal.toFixed(2)}</span>
+                      <span className="text-sm font-bold text-green-400 uppercase tracking-widest">🟢 Recomendado</span>
+                      <span className="text-sm font-semibold text-green-300">${optionalTotal.toFixed(2)}</span>
                     </div>
-                    <ul className="space-y-1 text-sm text-slate-400">
+                    <ul className="space-y-1 text-sm text-green-100/80">
                       {optionalItems.map((i: any) => (
                         <li key={i.id} className="flex justify-between items-center border-b border-slate-700/50 pb-1">
                           <span>{i.qty}× {i.description}</span>
