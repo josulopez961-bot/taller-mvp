@@ -82,14 +82,17 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
+            const priorityOrder: Record<string, number> = { urgente: 0, recomendado: 1, opcional: 2, especial: 3 };
             setItems(
-              data.map((item: any) => ({
-                category: item.category,
-                priority: item.priority || 'urgente',
-                description: item.description,
-                qty: Number(item.qty),
-                unit_price: Number(item.unit_price),
-              }))
+              data
+                .map((item: any) => ({
+                  category: item.category,
+                  priority: item.priority || 'urgente',
+                  description: item.description,
+                  qty: Number(item.qty),
+                  unit_price: Number(item.unit_price),
+                }))
+                .sort((a: any, b: any) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9))
             );
           }
         }
@@ -353,12 +356,14 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                     color:
                       item.priority === 'urgente' ? '#f87171' :
                       item.priority === 'recomendado' ? '#fbbf24' :
+                      item.priority === 'especial' ? '#c084fc' :
                       '#4ade80'
                   }}
                 >
                   <option value="urgente">🔴 Mantenimiento necesario</option>
                   <option value="recomendado">🟡 Puede dañarse - no urgente</option>
                   <option value="opcional">🟢 Recomendado</option>
+                  <option value="especial">🟣 Servicio especializado</option>
                 </select>
                 <select
                   value={item.category}

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"c:/Users/josul/.gemini/antigravity/brain/c9e54c31-5983-4a2f-b28c-fa11e766e35c/taller-mvp/app/api/admin/orders/[id]/photos\")",
+      "Bash(mkdir -p \"c:/Users/josul/.gemini/antigravity/brain/c9e54c31-5983-4a2f-b28c-fa11e766e35c/taller-mvp/app/api/admin/orders/[id]/reception-notes\")"
+    ]
+  }
+}

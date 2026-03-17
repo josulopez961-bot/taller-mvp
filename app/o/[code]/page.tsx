@@ -136,6 +136,7 @@ export default async function OrderPublicPage({
   const urgentItems = (quoteItems || []).filter((i) => (i.priority || 'urgente') === 'urgente');
   const recommendedItems = (quoteItems || []).filter((i) => i.priority === 'recomendado');
   const optionalItems = (quoteItems || []).filter((i) => i.priority === 'opcional');
+  const specialItems = (quoteItems || []).filter((i) => i.priority === 'especial');
 
   const calcTotal = (items: any[]) => items.reduce((a, i) => a + Number(i.qty) * Number(i.unit_price), 0);
   const urgentTotal = calcTotal(urgentItems);
@@ -428,6 +429,14 @@ export default async function OrderPublicPage({
               <div className="mt-4 border-t border-slate-700 pt-4 space-y-4">
                 <h3 className="text-lg font-semibold text-white">Desglose de cotización</h3>
 
+                <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-4 space-y-2 text-sm">
+                  <p className="font-semibold text-slate-300 mb-2">¿Qué significa cada color?</p>
+                  <div className="flex items-start gap-2"><span>🔴</span><span className="text-slate-300"><span className="text-red-400 font-semibold">Mantenimiento necesario:</span> Debe atenderse de inmediato. Afecta la seguridad o puede causar daños mayores si se ignora.</span></div>
+                  <div className="flex items-start gap-2"><span>🟡</span><span className="text-slate-300"><span className="text-yellow-400 font-semibold">Puede dañarse:</span> No es urgente hoy, pero si no se atiende pronto puede convertirse en un daño mayor y más costoso.</span></div>
+                  <div className="flex items-start gap-2"><span>🟢</span><span className="text-slate-300"><span className="text-green-400 font-semibold">Recomendado:</span> Mantenimiento preventivo. El vehículo funciona, pero atenderlo prolonga su vida útil.</span></div>
+                  <div className="flex items-start gap-2"><span>🟣</span><span className="text-slate-300"><span className="text-purple-400 font-semibold">Servicio especializado:</span> Requiere equipos o certificaciones que no realizamos en este taller. Se indica para que lo atiendas en un taller especializado.</span></div>
+                </div>
+
                 {urgentItems.length > 0 && (
                   <div className="rounded-xl border border-red-800/50 bg-red-950/20 p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -476,6 +485,24 @@ export default async function OrderPublicPage({
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {specialItems.length > 0 && (
+                  <div className="rounded-xl border border-purple-800/50 bg-purple-950/20 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-purple-400 uppercase tracking-widest">🟣 Servicios especializados</span>
+                    </div>
+                    <ul className="space-y-1 text-sm text-slate-300 mb-3">
+                      {specialItems.map((i: any) => (
+                        <li key={i.id} className="flex justify-between items-center border-b border-slate-800/50 pb-1">
+                          <span>{i.qty}× {i.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-purple-300 bg-purple-900/30 rounded-lg p-3 leading-relaxed">
+                      ⚠️ Estos servicios requieren equipos o certificaciones especializadas que no realizamos en este taller. Te recomendamos llevar tu vehículo a un taller especializado para atender estos puntos.
+                    </p>
                   </div>
                 )}
 

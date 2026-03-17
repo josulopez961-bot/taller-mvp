@@ -21,7 +21,7 @@ Texto del mecánico: "${rawText.trim()}"
 
 Reglas:
 - category: "labor" (mano de obra), "part" (repuesto), "supply" (insumo/aceite/liquido)
-- priority: "urgente" (debe hacerse ya, seguridad), "recomendado" (se puede dañar si no se hace pronto), "opcional" (recomendación de mantenimiento preventivo)
+- priority: "urgente" (debe hacerse ya, seguridad), "recomendado" (se puede dañar si no se hace pronto), "opcional" (recomendación de mantenimiento preventivo), "especial" (requiere taller especializado o equipos que este taller no tiene: inyección electrónica, caja automática, aire acondicionado recarga de gas, alineación, etc.)
 - description: nombre limpio y profesional del trabajo o pieza
 - qty: cantidad numérica (default 1)
 - unit_price: precio si lo menciona, sino 0
@@ -52,7 +52,7 @@ Devuelve SOLO un array JSON válido, sin texto extra, sin markdown, sin explicac
 
     const clean = items.map((item: any) => ({
       category: ["labor", "part", "supply"].includes(item.category) ? item.category : "labor",
-      priority: ["urgente", "recomendado", "opcional"].includes(item.priority) ? item.priority : "recomendado",
+      priority: ["urgente", "recomendado", "opcional", "especial"].includes(item.priority) ? item.priority : "recomendado",
       description: String(item.description || "").trim(),
       qty: Number(item.qty) || 1,
       unit_price: Number(item.unit_price) || 0,
