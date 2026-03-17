@@ -423,13 +423,25 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                 </button>
               </div>
             ))}
-            <button
-              type="button"
-              onClick={() => setItems([...items, { category: "part", priority: "urgente", description: "", qty: 1, unit_price: 0 }])}
-              className="mt-2 text-sm font-semibold text-orange-400 hover:text-orange-300"
-            >
-              + Agregar Item
-            </button>
+            <div className="mt-2 flex gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setItems([...items, { category: "part", priority: "urgente", description: "", qty: 1, unit_price: 0 }])}
+                className="text-sm font-semibold text-orange-400 hover:text-orange-300"
+              >
+                + Agregar Item
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const order: Record<string, number> = { labor: 0, part: 1, supply: 2 };
+                  setItems([...items].sort((a, b) => (order[a.category] ?? 9) - (order[b.category] ?? 9)));
+                }}
+                className="text-sm font-semibold text-slate-400 hover:text-slate-200 border border-slate-600 rounded-lg px-3 py-1"
+              >
+                ↕ Ordenar por categoría
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-3">
