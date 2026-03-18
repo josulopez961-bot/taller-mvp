@@ -78,6 +78,7 @@ export default async function OrderPublicPage({
       repair_detail,
       repair_cost,
       approval_status,
+      authorized_priorities,
       vehicle_id,
       recommendations,
       vehicle:vehicles (
@@ -517,6 +518,12 @@ export default async function OrderPublicPage({
               publicCode={order.public_code}
               approvalStatus={order.approval_status}
               orderStatus={normalizedStatus}
+              authorizedPriorities={(order as any).authorized_priorities}
+              groups={[
+                { key: "urgente", label: "🔴 Mantenimiento necesario", color: "red", total: urgentTotal, count: urgentItems.length },
+                { key: "recomendado", label: "🟡 Puede dañarse", color: "yellow", total: recommendedTotal, count: recommendedItems.length },
+                { key: "opcional", label: "🟢 Recomendado", color: "green", total: optionalTotal, count: optionalItems.length },
+              ]}
             />
           </section>
         )}

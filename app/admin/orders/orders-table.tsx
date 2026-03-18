@@ -11,12 +11,23 @@ type DiagnosisEditorProps = {
   order: OrderItem
 };
 
-function ApprovalBadge({ status }: { status?: string | null }) {
+const PRIORITY_ICONS: Record<string, string> = {
+  urgente: "🔴",
+  recomendado: "🟡",
+  opcional: "🟢",
+};
+
+function ApprovalBadge({ status, authorizedPriorities }: { status?: string | null; authorizedPriorities?: string | null }) {
   if (status === "aprobado") {
+    const icons = authorizedPriorities
+      ? authorizedPriorities.split(",").map((p) => PRIORITY_ICONS[p] || p).join(" ")
+      : "";
     return (
-      <span className="rounded-full border border-green-700 bg-green-900/30 px-3 py-1 text-xs font-semibold text-green-300">
-        Autorizado
-      </span>
+      <div className="flex flex-col items-start gap-0.5">
+        <span className="rounded-full border border-green-700 bg-green-900/30 px-3 py-1 text-xs font-semibold text-green-300">
+          Autorizado {icons}
+        </span>
+      </div>
     );
   }
 
@@ -189,7 +200,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
           <p className="text-sm font-semibold text-white">
             Diagnóstico y presupuesto
           </p>
-          <ApprovalBadge status={order.approval_status} />
+          <ApprovalBadge status={order.approval_status} authorizedPriorities={order.authorized_priorities} />
         </div>
 
         <button
@@ -479,6 +490,7 @@ type OrderItem = {
   repair_detail?: string | null
   repair_cost?: number | null
   approval_status?: string | null
+  authorized_priorities?: string | null
   plate: string
   make: string
   model: string
@@ -831,7 +843,7 @@ export default function OrdersTable({
                           {order.status.replace('_', ' ')}
                         </span>
                         {order.status !== 'recibido' && (
-                          <ApprovalBadge status={order.approval_status} />
+                          <ApprovalBadge status={order.approval_status} authorizedPriorities={order.authorized_priorities} />
                         )}
                       </div>
                     </td>

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ publicCode: string }> }
 ) {
   try {
@@ -17,11 +17,19 @@ export async function POST(
       return NextResponse.json({ error: "Código inválido" }, { status: 400 });
     }
 
+    let authorized_priorities: string | null = null;
+    try {
+      const body = await req.json();
+      authorized_priorities = body.authorized_priorities || null;
+    } catch {
+      // no body, ignore
+    }
+
     const { data, error } = await supabase
       .from("orders")
-      .update({ approval_status: "aprobado" })
+      .update({ approval_status: "aprobado", authorized_priorities })
       .eq("public_code", publicCode)
-      .select("id, public_code, approval_status");
+      .select("id, public_code, approval_status, authorized_priorities");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -34,10 +42,7 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      order: data[0],
-    });
+    return NextResponse.json({ ok: true, order: data[0] });
   } catch (error) {
     console.error("APPROVE_ORDER_ERROR", error);
     return NextResponse.json(
