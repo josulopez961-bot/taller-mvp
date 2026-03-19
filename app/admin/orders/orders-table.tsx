@@ -5,6 +5,7 @@ import Link from 'next/link'
 import OrderNotes from './order-notes'
 import OrderPhotos from './order-photos'
 import OrderDelivery from './order-delivery'
+import OrderProcess from './order-process'
 import { useRouter } from "next/navigation"
 
 type DiagnosisEditorProps = {
@@ -556,6 +557,7 @@ export default function OrdersTable({
   const [openNotesId, setOpenNotesId] = useState<string | null>(null)
   const [openPhotosId, setOpenPhotosId] = useState<string | null>(null)
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
+  const [openProcessId, setOpenProcessId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
   const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
@@ -914,6 +916,18 @@ export default function OrdersTable({
                           {openPhotosId === order.id ? 'Ocultar fotos' : '📷 Recepción'}
                         </button>
 
+                        {order.status === 'en_proceso' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenProcessId((prev) => (prev === order.id ? null : order.id))
+                            }
+                            className="inline-flex justify-center rounded-lg bg-blue-800 hover:bg-blue-700 px-3 py-2"
+                          >
+                            {openProcessId === order.id ? 'Ocultar proceso' : '🔧 Proceso'}
+                          </button>
+                        )}
+
                         {(order.status === 'listo' || order.status === 'entregado') && (
                           <button
                             type="button"
@@ -959,6 +973,14 @@ export default function OrdersTable({
                       </td>
                     </tr>
                   )}
+                  {openProcessId === order.id && (
+                    <tr className="border-t border-zinc-800 bg-zinc-950/50">
+                      <td colSpan={7} className="p-4">
+                        <OrderProcess orderId={order.id} authorizedPriorities={order.authorized_priorities} />
+                      </td>
+                    </tr>
+                  )}
+
                   {openDeliveryId === order.id && (
                     <tr className="border-t border-zinc-800 bg-zinc-950/50">
                       <td colSpan={7} className="p-4">

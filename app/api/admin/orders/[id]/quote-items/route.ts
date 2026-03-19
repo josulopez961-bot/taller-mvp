@@ -37,6 +37,35 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { itemId, completed } = await req.json();
+
+    if (!id || !itemId) {
+      return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from("order_quote_items")
+      .update({ completed })
+      .eq("id", itemId)
+      .eq("order_id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("QUOTE_ITEMS_PATCH_ERROR", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

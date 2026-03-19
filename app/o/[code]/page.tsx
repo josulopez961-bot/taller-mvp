@@ -101,6 +101,16 @@ export default async function OrderPublicPage({
     .eq("order_id", order?.id)
     .order("id", { ascending: true });
 
+  // Fotos del proceso
+  const { data: processPhotos } = order?.id
+    ? await supabase
+        .from("order_photos")
+        .select("id, url")
+        .eq("order_id", order.id)
+        .eq("photo_type", "process")
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
   // Fotos de entrega (solo si está entregado)
   const { data: deliveryPhotos } = order?.id
     ? await supabase
@@ -327,6 +337,58 @@ export default async function OrderPublicPage({
                 {order.summary || "Sin resumen"}
               </p>
             </div>
+          </section>
+        )}
+
+        {/* Trabajo en proceso */}
+        {normalizedStatus === "en_proceso" && (
+          <section className="rounded-2xl border border-blue-800/40 bg-blue-950/10 p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔧</span>
+              <div>
+                <h2 className="text-xl font-bold text-white">En reparación</h2>
+                <p className="text-sm text-blue-400">Tu vehículo está siendo trabajado</p>
+              </div>
+            </div>
+
+            {/* Checklist autorizado */}
+            {(() => {
+              const authorized = (order as any).authorized_priorities?.split(',').filter(Boolean) || [];
+              const authorizedItems = (quoteItems || []).filter((i: any) => authorized.includes(i.priority));
+              const done = authorizedItems.filter((i: any) => i.completed);
+              if (authorizedItems.length === 0) return null;
+              return (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-blue-400 mb-2">
+                    Avance del trabajo — {done.length}/{authorizedItems.length} completados
+                  </p>
+                  <ul className="space-y-2">
+                    {authorizedItems.map((item: any) => (
+                      <li key={item.id} className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${item.completed ? 'border-green-800/40 bg-green-950/20' : 'border-slate-700 bg-slate-900/50'}`}>
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold ${item.completed ? 'border-green-500 bg-green-500 text-white' : 'border-slate-600 bg-slate-800 text-slate-400'}`}>
+                          {item.completed ? '✓' : ''}
+                        </span>
+                        <span className={`text-sm flex-1 ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                          {item.qty}× {item.description}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
+
+            {/* Fotos del proceso */}
+            {processPhotos && processPhotos.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-blue-400 mb-2">Fotos del trabajo</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {processPhotos.map((photo: any) => (
+                    <img key={photo.id} src={photo.url} alt="Foto del proceso" className="h-32 w-full rounded-xl object-cover border border-blue-800/40" />
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
