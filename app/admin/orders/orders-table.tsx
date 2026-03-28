@@ -774,6 +774,12 @@ export default function OrdersTable({
                 🔔 Recordatorios
               </Link>
               <Link
+                href="/admin/history/new"
+                className="inline-flex items-center justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-4 py-3 font-semibold text-sm"
+              >
+                📋 Historial
+              </Link>
+              <Link
                 href="/admin/new"
                 className="inline-flex items-center justify-center rounded-lg bg-green-600 hover:bg-green-700 px-5 py-3 font-semibold"
               >

@@ -52,7 +52,7 @@ export default async function VehicleHistoryPage({
   const { data: orders } = await supabase
     .from("orders")
     .select(`
-      id, public_code, status, created_at, current_km,
+      id, public_code, status, created_at, service_date, current_km,
       intake_reason, diagnosis_detail, repair_detail,
       reception_notes, repair_cost,
       order_quote_items ( id, priority, category, description, qty, unit_price )
@@ -75,12 +75,15 @@ export default async function VehicleHistoryPage({
       <div className="max-w-4xl mx-auto">
 
         {/* Header */}
-        <div className="mb-6 flex items-center gap-4">
-          <Link
-            href="/admin/orders"
-            className="text-slate-400 hover:text-white text-sm"
-          >
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <Link href="/admin/orders" className="text-slate-400 hover:text-white text-sm">
             ← Órdenes
+          </Link>
+          <Link
+            href={`/admin/history/new?plate=${encodeURIComponent(vehicle.plate)}&make=${encodeURIComponent(vehicle.make || '')}&model=${encodeURIComponent(vehicle.model || '')}`}
+            className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white"
+          >
+            + Registrar servicio anterior
           </Link>
         </div>
 
@@ -155,9 +158,12 @@ export default async function VehicleHistoryPage({
                         </span>
                         <div>
                           <p className="text-sm font-semibold text-white">
-                            {new Date(order.created_at).toLocaleDateString("es-EC", {
+                            {new Date((order as any).service_date || order.created_at).toLocaleDateString("es-EC", {
                               day: "numeric", month: "long", year: "numeric"
                             })}
+                            {(order as any).service_date && (
+                              <span className="ml-2 text-xs text-slate-500 font-normal">(historial)</span>
+                            )}
                           </p>
                           <p className="text-xs text-slate-400">
                             Orden{" "}
