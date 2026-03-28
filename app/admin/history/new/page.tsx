@@ -27,6 +27,8 @@ function NewHistoryForm() {
   const [km, setKm] = useState("");
   const [summary, setSummary] = useState("");
   const [items, setItems] = useState<ServiceItem[]>([{ description: "", price: "" }]);
+  const [rawText, setRawText] = useState("");
+  const [parsing, setParsing] = useState(false);
 
   function addItem() {
     setItems((prev) => [...prev, { description: "", price: "" }]);
@@ -38,6 +40,32 @@ function NewHistoryForm() {
 
   function updateItem(idx: number, field: keyof ServiceItem, value: string) {
     setItems((prev) => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  }
+
+  function sortItems() {
+    setItems((prev) => [...prev].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0)));
+  }
+
+  async function parseWithAI() {
+    if (!rawText.trim()) return;
+    setParsing(true);
+    try {
+      const res = await fetch("/api/admin/ai-parse-history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || "Error con IA"); return; }
+      if (data.items?.length > 0) {
+        setItems(data.items);
+        setRawText("");
+      }
+    } catch {
+      alert("Error al conectar con IA");
+    } finally {
+      setParsing(false);
+    }
   }
 
   const total = items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
@@ -171,9 +199,32 @@ function NewHistoryForm() {
 
         {/* Servicios realizados */}
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4">
-          <h2 className="font-semibold text-white text-lg">Servicios realizados</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-white text-lg">Servicios realizados</h2>
+            <button onClick={sortItems} className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded-lg px-3 py-1">
+              ↕ Ordenar por precio
+            </button>
+          </div>
 
+          {/* Textarea IA */}
           <div className="space-y-2">
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Escribe en desorden: cambio aceite 10w40 25 filtro aceite 8 bujias 4 unidades 12 revision frenos..."
+              rows={3}
+              className="w-full rounded-lg border border-purple-700/50 bg-purple-950/10 px-3 py-2 text-white text-sm outline-none focus:border-purple-500 placeholder-slate-500"
+            />
+            <button
+              onClick={parseWithAI}
+              disabled={parsing || !rawText.trim()}
+              className="rounded-lg bg-purple-700 hover:bg-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {parsing ? "Procesando..." : "✨ Estructurar con IA"}
+            </button>
+          </div>
+
+          <div className="border-t border-slate-700 pt-3 space-y-2">
             {items.map((item, idx) => (
               <div key={idx} className="flex gap-2">
                 <input
@@ -196,7 +247,7 @@ function NewHistoryForm() {
             ))}
           </div>
 
-          <button onClick={addItem} className="text-sm text-orange-400 hover:text-orange-300">+ Agregar servicio</button>
+          <button onClick={addItem} className="text-sm text-orange-400 hover:text-orange-300">+ Agregar manualmente</button>
 
           {total > 0 && (
             <div className="flex justify-between items-center pt-2 border-t border-slate-700">
