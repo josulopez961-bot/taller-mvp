@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import RegisterSW from "./components/RegisterSW";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,15 +16,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FINECAR",
   description: "Sistema de gestión profesional FINECAR",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "FINECAR",
   },
   icons: {
-    icon: "/logo-finecar.png",
-    apple: "/logo-finecar.png",
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
   },
 };
 
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <RegisterSW />
         {children}
       </body>
     </html>
