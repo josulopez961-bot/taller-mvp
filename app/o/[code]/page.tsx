@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import ApprovalActions from "./ApprovalActions";
 import MaintenanceAlert from "./MaintenanceAlert";
+import PushSubscribeButton from "@/app/components/PushSubscribeButton";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -197,6 +198,11 @@ export default async function OrderPublicPage({
               {order.public_code}
             </span>
           </p>
+          {normalizedStatus !== "entregado" && (
+            <div className="mt-4">
+              <PushSubscribeButton orderId={order.id} />
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
