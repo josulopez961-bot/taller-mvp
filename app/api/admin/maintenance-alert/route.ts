@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   }
 
   // Traer todos los planes scheduled con vehículo y cliente
-  const { data: plans } = await supabase
+  const { data: plans, error: plansError } = await supabase
     .from("maintenance_plans")
     .select(`
       id, service_name, last_service_km, next_service_km,
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     .eq("status", "scheduled");
 
   if (!plans || plans.length === 0) {
-    return NextResponse.json({ sent: 0 });
+    return NextResponse.json({ sent: 0, error: plansError?.message, plansRaw: plans });
   }
 
   // Historial de km por vehículo
