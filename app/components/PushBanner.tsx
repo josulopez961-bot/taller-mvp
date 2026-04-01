@@ -13,6 +13,7 @@ export default function PushBanner({ orderId }: { orderId: string }) {
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [errMsg, setErrMsg] = useState('')
 
   useEffect(() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return
@@ -36,8 +37,8 @@ export default function PushBanner({ orderId }: { orderId: string }) {
       })
       setDone(true)
       setTimeout(() => setVisible(false), 3000)
-    } catch {
-      setVisible(false)
+    } catch (e: any) {
+      setErrMsg(e?.message || 'Error desconocido')
     } finally {
       setLoading(false)
     }
@@ -62,6 +63,7 @@ export default function PushBanner({ orderId }: { orderId: string }) {
             <div className="flex-1">
               <p className="font-semibold text-white">Recibe alertas de mantenimiento</p>
               <p className="text-sm text-slate-400">Te avisamos antes de que caduque tu próximo servicio</p>
+              {errMsg && <p className="mt-1 text-xs text-red-400">{errMsg}</p>}
             </div>
             <div className="flex gap-2">
               <button
