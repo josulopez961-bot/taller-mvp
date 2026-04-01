@@ -25,6 +25,11 @@ export default function PushBanner({ orderId }: { orderId: string }) {
   async function activate() {
     setLoading(true)
     try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setErrMsg('Permiso denegado — actívalo en configuración de Chrome')
+        return
+      }
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
