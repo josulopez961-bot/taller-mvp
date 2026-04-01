@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import ApprovalActions from "./ApprovalActions";
 import MaintenanceAlert from "./MaintenanceAlert";
-import PushBanner from "@/app/components/PushBanner";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -591,7 +590,6 @@ export default async function OrderPublicPage({
           </section>
         )}
       </div>
-      <PushBanner orderId={order.id} />
     </main>
   );
 }
