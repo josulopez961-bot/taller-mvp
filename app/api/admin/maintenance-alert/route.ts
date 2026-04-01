@@ -100,7 +100,7 @@ export async function GET(req: Request) {
   }
 
   if (alertRows.length === 0) {
-    return NextResponse.json({ sent: 0, message: "No hay clientes próximos a mantenimiento" });
+    return NextResponse.json({ sent: 0, message: "No hay clientes próximos a mantenimiento", plansCount: plans.length, vehicleIds: vehicleIds.length, historyCount: (ordersHistory || []).length });
   }
 
   // Construir email HTML
