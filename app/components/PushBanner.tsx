@@ -61,7 +61,7 @@ export default function PushBanner({ orderId }: { orderId: string }) {
             <span className="text-2xl">🔔</span>
             <div className="flex-1">
               <p className="font-semibold text-white">Recibe alertas de mantenimiento</p>
-              <p className="text-sm text-slate-400">Te avisamos antes de que venza tu próximo servicio</p>
+              <p className="text-sm text-slate-400">Te avisamos antes de que caduque tu próximo servicio</p>
             </div>
             <div className="flex gap-2">
               <button
