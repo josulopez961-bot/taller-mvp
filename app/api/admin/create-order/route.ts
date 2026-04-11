@@ -1,5 +1,6 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getOrderSummary, normalizeOrderWorkType } from '@/lib/order-work-types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,18 +16,19 @@ export async function POST(req: Request) {
     const whatsapp = String(body.whatsapp || '').trim()
     const make = String(body.make || '').trim()
     const model = String(body.model || '').trim()
-    const summary = String(body.summary || '').trim()
+    const intakeReason = String(body.intake_reason || body.summary || '').trim()
+    const summary = getOrderSummary(body.work_type, intakeReason)
     const year = body.year ? Number(body.year) : null
+    const normalizedWorkType = normalizeOrderWorkType(body.work_type)
 
     if (!plate) {
       return NextResponse.json({ error: 'La placa es obligatoria' }, { status: 400 })
     }
 
-    if (!summary) {
-      return NextResponse.json({ error: 'El servicio es obligatorio' }, { status: 400 })
+    if (!intakeReason) {
+      return NextResponse.json({ error: 'El motivo de ingreso es obligatorio' }, { status: 400 })
     }
 
-    // 1) Buscar vehículo por placa
     const { data: existingVehicle } = await supabase
       .from('vehicles')
       .select('id, customer_id')
@@ -36,7 +38,6 @@ export async function POST(req: Request) {
     let vehicleId = existingVehicle?.id ?? null
     let customerId = existingVehicle?.customer_id ?? null
 
-    // 2) Si no existe vehículo, crear cliente y vehículo
     if (!vehicleId) {
       if (!customerName) {
         return NextResponse.json(
@@ -85,7 +86,6 @@ export async function POST(req: Request) {
       vehicleId = vehicle.id
     }
 
-    // 3) Generar siguiente FIN###
     const { data: allCodes, error: codesError } = await supabase
       .from('orders')
       .select('public_code')
@@ -104,7 +104,6 @@ export async function POST(req: Request) {
 
     const code = `FIN${String(maxNum + 1).padStart(3, '0')}`
 
-    // 4) Crear orden
     const { error: insertError } = await supabase
       .from('orders')
       .insert({
@@ -112,6 +111,13 @@ export async function POST(req: Request) {
         public_code: code,
         status: 'recibido',
         summary,
+        work_type: normalizedWorkType,
+        intake_reason: intakeReason,
+        customer_concern: String(body.customer_concern || intakeReason || '').trim() || null,
+        paint_scope: String(body.paint_scope || '').trim() || null,
+        insurance_scope: String(body.insurance_scope || '').trim() || null,
+        insurance_company: String(body.insurance_company || '').trim() || null,
+        insurance_claim_number: String(body.insurance_claim_number || '').trim() || null,
       })
 
     if (insertError) {

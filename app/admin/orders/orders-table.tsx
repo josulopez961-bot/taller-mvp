@@ -7,6 +7,11 @@ import OrderPhotos from './order-photos'
 import OrderDelivery from './order-delivery'
 import OrderProcess from './order-process'
 import { useRouter } from "next/navigation"
+import {
+  ORDER_WORK_TYPE_LABELS,
+  getWorkTypeBadgeClass,
+  normalizeOrderWorkType,
+} from "@/lib/order-work-types"
 
 type DiagnosisEditorProps = {
   order: OrderItem
@@ -70,6 +75,8 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
     estimated_delivery_date: order.estimated_delivery_date || "",
     diagnosis_detail: order.diagnosis_detail || "",
     repair_detail: order.repair_detail || "",
+    paint_scope: order.paint_scope || "",
+    insurance_scope: order.insurance_scope || "",
     repair_cost:
       order.repair_cost !== null && order.repair_cost !== undefined
         ? String(order.repair_cost)
@@ -81,6 +88,8 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
       form.estimated_delivery_date ||
       form.diagnosis_detail ||
       form.repair_detail ||
+      form.paint_scope ||
+      form.insurance_scope ||
       form.repair_cost
     );
   }, [form]);
@@ -144,6 +153,14 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
     return null;
   }
 
+  const normalizedWorkType = normalizeOrderWorkType(order.work_type);
+  const diagnosisTitle =
+    normalizedWorkType === "pintura"
+      ? "Alcance y presupuesto"
+      : normalizedWorkType === "aseguradora"
+      ? "Alcance para aseguradora"
+      : "Diagnóstico y presupuesto";
+
   async function handleSave() {
     setLoading(true);
 
@@ -157,6 +174,8 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
           estimated_delivery_date: form.estimated_delivery_date || null,
           diagnosis_detail: form.diagnosis_detail.trim() || null,
           repair_detail: form.repair_detail.trim() || null,
+          paint_scope: form.paint_scope.trim() || null,
+          insurance_scope: form.insurance_scope.trim() || null,
           repair_cost: totalFromItems,
           current_km: currentKm,
           generate_maintenance_plan: generateMaintenance,
@@ -199,7 +218,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <p className="text-sm font-semibold text-white">
-            Diagnóstico y presupuesto
+            {diagnosisTitle}
           </p>
           <ApprovalBadge status={order.approval_status} authorizedPriorities={order.authorized_priorities} />
         </div>
@@ -286,6 +305,44 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
               placeholder="Qué trabajo se va a realizar"
             />
           </div>
+
+          {normalizedWorkType === "pintura" && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                Alcance de pintura
+              </label>
+              <textarea
+                value={form.paint_scope}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    paint_scope: e.target.value,
+                  }))
+                }
+                className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
+                placeholder="Piezas, color, retoque o repintado"
+              />
+            </div>
+          )}
+
+          {normalizedWorkType === "aseguradora" && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                Alcance para aseguradora
+              </label>
+              <textarea
+                value={form.insurance_scope}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    insurance_scope: e.target.value,
+                  }))
+                }
+                className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
+                placeholder="Trabajo, piezas y observaciones del alcance"
+              />
+            </div>
+          )}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -484,12 +541,19 @@ type OrderItem = {
   id: string
   public_code: string
   status: string
+  work_type: string
   summary: string
   created_at: string
   estimated_delivery_date?: string | null
+  intake_reason?: string | null
+  customer_concern?: string | null
   diagnosis_detail?: string | null
   repair_detail?: string | null
   repair_cost?: number | null
+  paint_scope?: string | null
+  insurance_scope?: string | null
+  insurance_company?: string | null
+  insurance_claim_number?: string | null
   approval_status?: string | null
   authorized_priorities?: string | null
   plate: string
@@ -749,7 +813,11 @@ export default function OrdersTable({
         order.plate.toLowerCase().includes(q) ||
         order.customer_name.toLowerCase().includes(q) ||
         order.whatsapp.toLowerCase().includes(q) ||
-        order.summary.toLowerCase().includes(q)
+        order.summary.toLowerCase().includes(q) ||
+        ORDER_WORK_TYPE_LABELS[normalizeOrderWorkType(order.work_type)].toLowerCase().includes(q) ||
+        (order.intake_reason || '').toLowerCase().includes(q) ||
+        (order.customer_concern || '').toLowerCase().includes(q) ||
+        (order.insurance_company || '').toLowerCase().includes(q)
       )
     })
   }, [orders, query])
@@ -836,8 +904,30 @@ export default function OrdersTable({
                     </td>
 
                     <td className="p-4 max-w-[320px]">
-                      <div className="whitespace-normal break-words">
-                        {order.summary || '-'}
+                      <div className="flex flex-col items-start gap-2">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getWorkTypeBadgeClass(
+                            order.work_type
+                          )}`}
+                        >
+                          {ORDER_WORK_TYPE_LABELS[normalizeOrderWorkType(order.work_type)]}
+                        </span>
+                        <div className="whitespace-normal break-words">
+                          {order.summary || order.intake_reason || '-'}
+                        </div>
+                        {order.customer_concern && order.customer_concern !== order.summary && (
+                          <div className="text-xs text-zinc-400">
+                            Cliente: {order.customer_concern}
+                          </div>
+                        )}
+                        {order.insurance_company && (
+                          <div className="text-xs text-sky-300">
+                            {order.insurance_company}
+                            {order.insurance_claim_number
+                              ? ` · ${order.insurance_claim_number}`
+                              : ''}
+                          </div>
+                        )}
                       </div>
                     </td>
 

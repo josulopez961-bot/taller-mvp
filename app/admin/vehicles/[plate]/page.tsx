@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  ORDER_WORK_TYPE_LABELS,
+  getWorkTypeBadgeClass,
+  normalizeOrderWorkType,
+} from "@/lib/order-work-types";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,7 +58,9 @@ export default async function VehicleHistoryPage({
     .from("orders")
     .select(`
       id, public_code, status, created_at, service_date, current_km,
-      intake_reason, diagnosis_detail, repair_detail,
+      work_type, intake_reason, customer_concern, paint_scope,
+      insurance_scope, insurance_company, insurance_claim_number,
+      diagnosis_detail, repair_detail,
       reception_notes, repair_cost,
       order_quote_items ( id, priority, category, description, qty, unit_price )
     `)
@@ -178,6 +185,11 @@ export default async function VehicleHistoryPage({
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getWorkTypeBadgeClass(
+                          order.work_type
+                        )}`}>
+                          {ORDER_WORK_TYPE_LABELS[normalizeOrderWorkType(order.work_type)]}
+                        </span>
                         {order.current_km && (
                           <span className="text-sm text-slate-300">
                             {order.current_km.toLocaleString()} km
@@ -206,6 +218,40 @@ export default async function VehicleHistoryPage({
                             Motivo
                           </span>
                           <p className="mt-1">{order.intake_reason}</p>
+                        </div>
+                      )}
+
+                      {(order as any).customer_concern && (
+                        <div>
+                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                            Reporte del cliente
+                          </span>
+                          <p className="mt-1">{(order as any).customer_concern}</p>
+                        </div>
+                      )}
+
+                      {(order as any).paint_scope && (
+                        <div>
+                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                            Alcance de pintura
+                          </span>
+                          <p className="mt-1">{(order as any).paint_scope}</p>
+                        </div>
+                      )}
+
+                      {(order as any).insurance_scope && (
+                        <div>
+                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                            Alcance de aseguradora
+                          </span>
+                          <p className="mt-1">{(order as any).insurance_scope}</p>
+                          {(((order as any).insurance_company) || ((order as any).insurance_claim_number)) && (
+                            <p className="mt-1 text-xs text-sky-300">
+                              {[(order as any).insurance_company, (order as any).insurance_claim_number]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          )}
                         </div>
                       )}
 

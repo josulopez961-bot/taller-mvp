@@ -1,5 +1,9 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getOrderSummary,
+  normalizeOrderWorkType,
+} from "@/lib/order-work-types";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,17 +27,27 @@ export async function POST(req: Request) {
       year,
       engine,
       intake_km,
+      work_type,
       intake_reason,
+      customer_concern,
+      paint_scope,
+      insurance_scope,
+      insurance_company,
+      insurance_claim_number,
       estimated_delivery_date,
     } = body;
 
-    if (!plate || !customer_name || !whatsapp) {
+    if (!plate || !customer_name || !whatsapp || !intake_reason) {
       return NextResponse.json(
-        { error: "Faltan campos obligatorios" },
+        {
+          error:
+            "Placa, cliente, WhatsApp y motivo de ingreso son obligatorios",
+        },
         { status: 400 }
       );
     }
 
+    const normalizedWorkType = normalizeOrderWorkType(work_type);
     let customerId: string;
     let vehicleId: string;
 
@@ -148,8 +162,19 @@ export async function POST(req: Request) {
         vehicle_id: vehicleId,
         public_code,
         status: "recibido",
+        work_type: normalizedWorkType,
+        summary: getOrderSummary(normalizedWorkType, intake_reason),
         estimated_delivery_date: estimated_delivery_date || null,
         intake_reason: intake_reason || null,
+        customer_concern:
+          normalizedWorkType === "falla_puntual" ||
+          normalizedWorkType === "aseguradora"
+            ? customer_concern || null
+            : null,
+        paint_scope: paint_scope || null,
+        insurance_scope: insurance_scope || null,
+        insurance_company: insurance_company || null,
+        insurance_claim_number: insurance_claim_number || null,
         current_km: intake_km ? Number(intake_km) : null,
         approval_status: "pendiente",
       })

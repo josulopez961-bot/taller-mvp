@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ORDER_WORK_TYPES,
+  ORDER_WORK_TYPE_LABELS,
+  type OrderWorkType,
+} from "@/lib/order-work-types";
 
 type FormState = {
   plate: string;
@@ -12,7 +17,13 @@ type FormState = {
   year: string;
   engine: string;
   intake_km: string;
+  work_type: OrderWorkType;
   intake_reason: string;
+  customer_concern: string;
+  paint_scope: string;
+  insurance_scope: string;
+  insurance_company: string;
+  insurance_claim_number: string;
   estimated_delivery_date: string;
 };
 
@@ -25,20 +36,31 @@ const initialForm: FormState = {
   year: "",
   engine: "",
   intake_km: "",
+  work_type: "mantenimiento",
   intake_reason: "",
+  customer_concern: "",
+  paint_scope: "",
+  insurance_scope: "",
+  insurance_company: "",
+  insurance_claim_number: "",
   estimated_delivery_date: "",
 };
 
 const inputClass =
-  "w-full rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-400 p-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500";
+  "w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-white placeholder:text-slate-400 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500";
 
 const sectionLabel =
-  "text-xs font-semibold uppercase tracking-widest text-orange-400 mb-3";
+  "mb-3 text-xs font-semibold uppercase tracking-widest text-orange-400";
 
 export default function AdminNewOrderPage() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initialForm);
   const [loading, setLoading] = useState(false);
+
+  const isMaintenance = form.work_type === "mantenimiento";
+  const isPaint = form.work_type === "pintura";
+  const isIssue = form.work_type === "falla_puntual";
+  const isInsurance = form.work_type === "aseguradora";
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -64,7 +86,13 @@ export default function AdminNewOrderPage() {
           year: form.year ? Number(form.year) : null,
           engine: form.engine.trim() || null,
           intake_km: form.intake_km ? Number(form.intake_km) : null,
+          work_type: form.work_type,
           intake_reason: form.intake_reason.trim() || null,
+          customer_concern: form.customer_concern.trim() || null,
+          paint_scope: form.paint_scope.trim() || null,
+          insurance_scope: form.insurance_scope.trim() || null,
+          insurance_company: form.insurance_company.trim() || null,
+          insurance_claim_number: form.insurance_claim_number.trim() || null,
           estimated_delivery_date: form.estimated_delivery_date || null,
         }),
       });
@@ -80,7 +108,7 @@ export default function AdminNewOrderPage() {
         try {
           await navigator.clipboard.writeText(data.publicUrl);
         } catch {
-          console.warn("No se pudo copiar el link automáticamente");
+          console.warn("No se pudo copiar el link automaticamente");
         }
       }
 
@@ -88,24 +116,60 @@ export default function AdminNewOrderPage() {
       router.refresh();
     } catch (error) {
       console.error("CREATE_ORDER_FORM_ERROR", error);
-      alert("Ocurrió un error al crear la orden");
+      alert("Ocurrio un error al crear la orden");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#050816] text-white p-6">
+    <div className="min-h-screen bg-[#050816] p-6 text-white">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Nueva orden</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Registra el ingreso en menos de 30 segundos.
+          Usa el mismo flujo base del MVP y abre nuevas areas sin complicarlo.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+      <form onSubmit={handleSubmit} className="max-w-2xl space-y-8">
+        <section>
+          <p className={sectionLabel}>Tipo de trabajo</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {ORDER_WORK_TYPES.map((workType) => (
+              <label
+                key={workType}
+                className={`rounded-2xl border p-4 transition ${
+                  form.work_type === workType
+                    ? "border-orange-500 bg-orange-500/10"
+                    : "border-slate-800 bg-slate-900"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="work_type"
+                  value={workType}
+                  checked={form.work_type === workType}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <p className="font-semibold text-white">
+                  {ORDER_WORK_TYPE_LABELS[workType]}
+                </p>
+                <p className="mt-1 text-sm text-slate-400">
+                  {workType === "mantenimiento" &&
+                    "Servicios periodicos y revisiones preventivas."}
+                  {workType === "pintura" &&
+                    "Trabajo estetico, retoque o repintado de piezas."}
+                  {workType === "falla_puntual" &&
+                    "Dolor puntual o sintoma especifico reportado por el cliente."}
+                  {workType === "aseguradora" &&
+                    "Choque, siniestro o trabajo gestionado con aseguradora."}
+                </p>
+              </label>
+            ))}
+          </div>
+        </section>
 
-        {/* CLIENTE */}
         <section>
           <p className={sectionLabel}>Cliente</p>
           <div className="space-y-3">
@@ -128,9 +192,8 @@ export default function AdminNewOrderPage() {
           </div>
         </section>
 
-        {/* VEHÍCULO */}
         <section>
-          <p className={sectionLabel}>Vehículo</p>
+          <p className={sectionLabel}>Vehiculo</p>
           <div className="space-y-3">
             <input
               name="plate"
@@ -140,7 +203,7 @@ export default function AdminNewOrderPage() {
               className={inputClass}
               required
             />
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <input
                 name="make"
                 placeholder="Marca"
@@ -174,18 +237,75 @@ export default function AdminNewOrderPage() {
           </div>
         </section>
 
-        {/* INGRESO */}
         <section>
           <p className={sectionLabel}>Ingreso</p>
           <div className="space-y-3">
             <textarea
               name="intake_reason"
-              placeholder="Motivo de ingreso — lo que reporta el cliente (ej: ruido en suspensión, no carga batería)"
+              placeholder={
+                isMaintenance
+                  ? "Servicio solicitado o mantenimiento a realizar"
+                  : isPaint
+                  ? "Que pieza o area requiere pintura"
+                  : isInsurance
+                  ? "Resumen inicial del siniestro o alcance"
+                  : "Motivo de ingreso y sintoma reportado"
+              }
               value={form.intake_reason}
               onChange={handleChange}
               className={`${inputClass} min-h-[90px]`}
+              required
             />
-            <div className="grid gap-3 grid-cols-2">
+
+            {(isIssue || isInsurance) && (
+              <textarea
+                name="customer_concern"
+                placeholder="Que siente o reporta especificamente el cliente"
+                value={form.customer_concern}
+                onChange={handleChange}
+                className={`${inputClass} min-h-[90px]`}
+              />
+            )}
+
+            {isPaint && (
+              <textarea
+                name="paint_scope"
+                placeholder="Alcance de pintura: piezas, color, retoque o repintado"
+                value={form.paint_scope}
+                onChange={handleChange}
+                className={`${inputClass} min-h-[90px]`}
+              />
+            )}
+
+            {isInsurance && (
+              <>
+                <textarea
+                  name="insurance_scope"
+                  placeholder="Alcance inicial para aseguradora o choque"
+                  value={form.insurance_scope}
+                  onChange={handleChange}
+                  className={`${inputClass} min-h-[90px]`}
+                />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input
+                    name="insurance_company"
+                    placeholder="Aseguradora"
+                    value={form.insurance_company}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                  <input
+                    name="insurance_claim_number"
+                    placeholder="Siniestro / referencia"
+                    value={form.insurance_claim_number}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
               <input
                 name="intake_km"
                 type="number"
@@ -213,9 +333,9 @@ export default function AdminNewOrderPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-orange-500 px-5 py-4 font-semibold text-white text-lg transition hover:bg-orange-600 disabled:opacity-60"
+          className="w-full rounded-xl bg-orange-500 px-5 py-4 text-lg font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
         >
-          {loading ? "Creando..." : "Crear orden →"}
+          {loading ? "Creando..." : "Guardar ingreso →"}
         </button>
       </form>
     </div>

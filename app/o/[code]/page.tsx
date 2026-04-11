@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import ApprovalActions from "./ApprovalActions";
 import MaintenanceAlert from "./MaintenanceAlert";
+import {
+  ORDER_WORK_TYPE_LABELS,
+  getWorkTypeBadgeClass,
+  normalizeOrderWorkType,
+} from "@/lib/order-work-types";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,12 +76,19 @@ export default async function OrderPublicPage({
       id,
       public_code,
       status,
+      work_type,
       summary,
       created_at,
       estimated_delivery_date,
+      intake_reason,
+      customer_concern,
       diagnosis_detail,
       repair_detail,
       repair_cost,
+      paint_scope,
+      insurance_scope,
+      insurance_company,
+      insurance_claim_number,
       approval_status,
       authorized_priorities,
       vehicle_id,
@@ -177,6 +189,7 @@ export default async function OrderPublicPage({
       : null;
 
   const normalizedStatus = normalizeStatus(order.status);
+  const normalizedWorkType = normalizeOrderWorkType(order.work_type);
   const currentStepIndex = getStepIndex(normalizedStatus);
   const currentStatusLabel = getStatusLabel(normalizedStatus);
 
@@ -197,6 +210,15 @@ export default async function OrderPublicPage({
               {order.public_code}
             </span>
           </p>
+          <div className="mt-4">
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getWorkTypeBadgeClass(
+                order.work_type
+              )}`}
+            >
+              {ORDER_WORK_TYPE_LABELS[normalizedWorkType]}
+            </span>
+          </div>
         </section>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
@@ -336,6 +358,38 @@ export default async function OrderPublicPage({
                 <span className="font-semibold text-white">Resumen:</span>{" "}
                 {order.summary || "Sin resumen"}
               </p>
+              {order.intake_reason && (
+                <p>
+                  <span className="font-semibold text-white">Ingreso:</span>{" "}
+                  {order.intake_reason}
+                </p>
+              )}
+              {order.customer_concern && (
+                <p>
+                  <span className="font-semibold text-white">Reporte del cliente:</span>{" "}
+                  {order.customer_concern}
+                </p>
+              )}
+              {order.paint_scope && (
+                <p>
+                  <span className="font-semibold text-white">Alcance de pintura:</span>{" "}
+                  {order.paint_scope}
+                </p>
+              )}
+              {order.insurance_scope && (
+                <p>
+                  <span className="font-semibold text-white">Alcance aseguradora:</span>{" "}
+                  {order.insurance_scope}
+                </p>
+              )}
+              {(order.insurance_company || order.insurance_claim_number) && (
+                <p>
+                  <span className="font-semibold text-white">Referencia:</span>{" "}
+                  {[order.insurance_company, order.insurance_claim_number]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
             </div>
           </section>
         )}
@@ -593,4 +647,3 @@ export default async function OrderPublicPage({
     </main>
   );
 }
-
