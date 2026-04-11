@@ -623,6 +623,7 @@ export default function OrdersTable({
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
   const [openProcessId, setOpenProcessId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
   const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
   const [maintenanceServiceName, setMaintenanceServiceName] = useState("Próximo mantenimiento");
@@ -781,6 +782,39 @@ export default function OrdersTable({
       alert(`Link copiado:\n${link}`)
     } catch {
       alert(`No se pudo copiar automáticamente.\nLink:\n${link}`)
+    }
+  }
+
+  async function deleteOrder(order: OrderItem) {
+    const confirmed = window.confirm(
+      `Vas a eliminar la orden ${order.public_code} de ${order.plate}. Esta acción no se puede deshacer.`
+    )
+
+    if (!confirmed) return
+
+    setDeletingId(order.id)
+
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data.error || 'No se pudo eliminar la orden')
+        return
+      }
+
+      setOrders((prev) => prev.filter((item) => item.id !== order.id))
+      if (openNotesId === order.id) setOpenNotesId(null)
+      if (openPhotosId === order.id) setOpenPhotosId(null)
+      if (openProcessId === order.id) setOpenProcessId(null)
+      if (openDeliveryId === order.id) setOpenDeliveryId(null)
+    } catch {
+      alert('Error al eliminar la orden')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -1051,6 +1085,15 @@ export default function OrdersTable({
                             📅 Mantenimiento
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => deleteOrder(order)}
+                          disabled={deletingId === order.id}
+                          className="inline-flex justify-center rounded-lg border border-red-900 bg-red-950/60 px-3 py-2 text-red-300 hover:bg-red-900/50 disabled:opacity-60"
+                        >
+                          {deletingId === order.id ? 'Eliminando...' : '🗑 Eliminar'}
+                        </button>
                       </div>
                     </td>
                   </tr>
