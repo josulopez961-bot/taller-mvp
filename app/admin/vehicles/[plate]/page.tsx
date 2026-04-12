@@ -58,10 +58,11 @@ export default async function VehicleHistoryPage({
     .from("orders")
     .select(`
       id, public_code, status, created_at, service_date, current_km,
+      estimated_delivery_date, approval_status,
       work_type, intake_reason, customer_concern, paint_scope,
       insurance_scope, insurance_company, insurance_claim_number,
-      diagnosis_detail, repair_detail,
-      reception_notes, repair_cost,
+      diagnosis_detail, repair_detail, scope_text, recommendations,
+      reception_notes, repair_cost, invoice_url,
       order_quote_items ( id, priority, category, description, qty, unit_price )
     `)
     .eq("vehicle_id", vehicle.id)
@@ -130,9 +131,9 @@ export default async function VehicleHistoryPage({
           </div>
         </section>
 
-        {/* Timeline de visitas */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold text-white mb-4">Historial de visitas</h2>
+	        {/* Timeline de visitas */}
+	        <section className="mb-6">
+	          <h2 className="text-lg font-bold text-white mb-4">Historial de visitas</h2>
 
           {(!orders || orders.length === 0) ? (
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-400">
@@ -140,15 +141,24 @@ export default async function VehicleHistoryPage({
             </div>
           ) : (
             <div className="space-y-4">
-              {orders.map((order, idx) => {
-                const items = (order.order_quote_items as any[]) || [];
-                const totalOrder = items.reduce(
-                  (a: number, i: any) => a + Number(i.qty) * Number(i.unit_price), 0
-                );
+	              {orders.map((order, idx) => {
+	                const items = (order.order_quote_items as any[]) || [];
+	                const totalOrder = items.reduce(
+	                  (a: number, i: any) => a + Number(i.qty) * Number(i.unit_price), 0
+	                );
+	                const hasProforma = items.length > 0;
+	                const hasScope = Boolean((order as any).scope_text);
+	                const hasInvoice = Boolean((order as any).invoice_url);
+	                const hasDiagnosis = Boolean(order.diagnosis_detail);
+	                const hasResolution = Boolean(order.repair_detail);
+	                const createdDate = new Date((order as any).service_date || order.created_at);
+	                const estimatedDate = (order as any).estimated_delivery_date
+	                  ? new Date((order as any).estimated_delivery_date)
+	                  : null;
 
-                const byPriority: Record<string, any[]> = { urgente: [], recomendado: [], opcional: [] };
-                items.forEach((i) => {
-                  const p = i.priority || "urgente";
+	                const byPriority: Record<string, any[]> = { urgente: [], recomendado: [], opcional: [] };
+	                items.forEach((i) => {
+	                  const p = i.priority || "urgente";
                   if (byPriority[p]) byPriority[p].push(i);
                 });
 
@@ -163,14 +173,14 @@ export default async function VehicleHistoryPage({
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-300">
                           {totalVisits - idx}
                         </span>
-                        <div>
-                          <p className="text-sm font-semibold text-white">
-                            {new Date((order as any).service_date || order.created_at).toLocaleDateString("es-EC", {
-                              day: "numeric", month: "long", year: "numeric"
-                            })}
-                            {(order as any).service_date && (
-                              <span className="ml-2 text-xs text-slate-500 font-normal">(historial)</span>
-                            )}
+	                        <div>
+	                          <p className="text-sm font-semibold text-white">
+	                            {createdDate.toLocaleDateString("es-EC", {
+	                              day: "numeric", month: "long", year: "numeric"
+	                            })}
+	                            {(order as any).service_date && (
+	                              <span className="ml-2 text-xs text-slate-500 font-normal">(historial)</span>
+	                            )}
                           </p>
                           <p className="text-xs text-slate-400">
                             Orden{" "}
@@ -179,12 +189,22 @@ export default async function VehicleHistoryPage({
                               target="_blank"
                               className="text-orange-400 hover:underline"
                             >
-                              {order.public_code}
-                            </Link>
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
+	                              {order.public_code}
+	                            </Link>
+	                          </p>
+	                          {estimatedDate && (
+	                            <p className="text-xs text-slate-500">
+	                              Entrega estimada:{" "}
+	                              {estimatedDate.toLocaleDateString("es-EC", {
+	                                day: "numeric",
+	                                month: "short",
+	                                year: "numeric",
+	                              })}
+	                            </p>
+	                          )}
+	                        </div>
+	                      </div>
+	                      <div className="flex items-center gap-3">
                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getWorkTypeBadgeClass(
                           order.work_type
                         )}`}>
@@ -210,11 +230,73 @@ export default async function VehicleHistoryPage({
                       </div>
                     </div>
 
-                    {/* Cuerpo de la visita */}
-                    <div className="p-4 space-y-3 text-sm text-slate-300">
-                      {order.intake_reason && (
-                        <div>
-                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+	                    {/* Cuerpo de la visita */}
+	                    <div className="p-4 space-y-3 text-sm text-slate-300">
+	                      <div className="grid gap-2 md:grid-cols-4">
+	                        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+	                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+	                            Ingreso
+	                          </p>
+	                          <p className="mt-2 text-sm text-white">
+	                            {order.intake_reason ? "Registrado" : "Pendiente"}
+	                          </p>
+	                        </div>
+	                        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+	                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+	                            Diagnostico
+	                          </p>
+	                          <p className="mt-2 text-sm text-white">
+	                            {hasDiagnosis ? "Cargado" : "Pendiente"}
+	                          </p>
+	                        </div>
+	                        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+	                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+	                            Trabajo
+	                          </p>
+	                          <p className="mt-2 text-sm text-white">
+	                            {hasResolution || hasScope ? "Documentado" : "Pendiente"}
+	                          </p>
+	                        </div>
+	                        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+	                          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+	                            Cierre
+	                          </p>
+	                          <p className="mt-2 text-sm text-white">
+	                            {hasInvoice ? "Factura lista" : order.status === "entregado" ? "Entregado" : "Abierto"}
+	                          </p>
+	                        </div>
+	                      </div>
+
+	                      <div className="flex flex-wrap gap-2">
+	                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+	                          (order as any).approval_status === "aprobado"
+	                            ? "border-emerald-700 bg-emerald-950/40 text-emerald-300"
+	                            : (order as any).approval_status === "rechazado"
+	                            ? "border-red-700 bg-red-950/40 text-red-300"
+	                            : "border-slate-700 bg-slate-900 text-slate-300"
+	                        }`}>
+	                          Autorizacion: {(order as any).approval_status || "pendiente"}
+	                        </span>
+	                        {hasProforma && (
+	                          <span className="rounded-full border border-orange-700 bg-orange-950/30 px-3 py-1 text-xs font-semibold text-orange-300">
+	                            Proforma lista
+	                          </span>
+	                        )}
+	                        {hasScope && (
+	                          <span className="rounded-full border border-blue-700 bg-blue-950/30 px-3 py-1 text-xs font-semibold text-blue-300">
+	                            Alcance cargado
+	                          </span>
+	                        )}
+	                        {hasInvoice && (
+	                          <span className="rounded-full border border-emerald-700 bg-emerald-950/30 px-3 py-1 text-xs font-semibold text-emerald-300">
+	                            Factura subida
+	                          </span>
+	                        )}
+	                      </div>
+
+	                      {order.intake_reason && (
+	                        <div>
+	                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                             Motivo
                           </span>
                           <p className="mt-1">{order.intake_reason}</p>
@@ -255,35 +337,78 @@ export default async function VehicleHistoryPage({
                         </div>
                       )}
 
-                      {order.diagnosis_detail && (
-                        <div>
-                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+	                      {order.diagnosis_detail && (
+	                        <div>
+	                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                             Diagnóstico
                           </span>
-                          <p className="mt-1">{order.diagnosis_detail}</p>
-                        </div>
-                      )}
+	                          <p className="mt-1">{order.diagnosis_detail}</p>
+	                        </div>
+	                      )}
 
-                      {order.repair_detail && (
-                        <div>
+	                      {(order as any).scope_text && (
+	                        <div>
+	                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+	                            Alcance en proceso
+	                          </span>
+	                          <p className="mt-1">{(order as any).scope_text}</p>
+	                        </div>
+	                      )}
+
+	                      {order.repair_detail && (
+	                        <div>
                           <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                             Trabajo realizado
                           </span>
-                          <p className="mt-1">{order.repair_detail}</p>
-                        </div>
-                      )}
+	                          <p className="mt-1">{order.repair_detail}</p>
+	                        </div>
+	                      )}
 
-                      {order.reception_notes && (
-                        <div>
+	                      {(order as any).recommendations && (
+	                        <div>
+	                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+	                            Recomendaciones de salida
+	                          </span>
+	                          <p className="mt-1">{(order as any).recommendations}</p>
+	                        </div>
+	                      )}
+
+	                      {order.reception_notes && (
+	                        <div>
                           <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                             Observaciones de recepción
                           </span>
-                          <p className="mt-1 text-slate-400">{order.reception_notes}</p>
-                        </div>
-                      )}
+	                          <p className="mt-1 text-slate-400">{order.reception_notes}</p>
+	                        </div>
+	                      )}
 
-                      {/* Items por prioridad */}
-                      {items.length > 0 && (
+	                      {(hasInvoice || totalOrder > 0) && (
+	                        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+	                          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+	                            Documentos y cierre
+	                          </span>
+	                          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+	                            {totalOrder > 0 && (
+	                              <span className="text-orange-300">
+	                                Proforma referencial: ${totalOrder.toFixed(2)}
+	                              </span>
+	                            )}
+	                            {hasInvoice && (
+	                              <a
+	                                href={(order as any).invoice_url}
+	                                target="_blank"
+	                                rel="noreferrer"
+	                                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600"
+	                              >
+	                                Ver factura
+	                              </a>
+	                            )}
+	                          </div>
+	                        </div>
+	                      )}
+
+	                      {/* Items por prioridad */}
+	                      {items.length > 0 && (
                         <div className="pt-2 space-y-2">
                           <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                             Piezas y trabajos
