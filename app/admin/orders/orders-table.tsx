@@ -8,7 +8,9 @@ import OrderDelivery from './order-delivery'
 import OrderProcess from './order-process'
 import { useRouter } from "next/navigation"
 import {
+  ORDER_WORK_TYPES,
   ORDER_WORK_TYPE_LABELS,
+  type OrderWorkType,
   getWorkTypeBadgeClass,
   normalizeOrderWorkType,
 } from "@/lib/order-work-types"
@@ -16,6 +18,16 @@ import {
 type DiagnosisEditorProps = {
   order: OrderItem
 };
+
+type EditOrderForm = {
+  work_type: OrderWorkType
+  intake_reason: string
+  customer_concern: string
+  paint_scope: string
+  insurance_scope: string
+  insurance_company: string
+  insurance_claim_number: string
+}
 
 const PRIORITY_ICONS: Record<string, string> = {
   urgente: "🔴",
@@ -607,6 +619,18 @@ function normalizeWhatsapp(input: string) {
   return digits
 }
 
+function buildEditOrderForm(order: OrderItem): EditOrderForm {
+  return {
+    work_type: normalizeOrderWorkType(order.work_type),
+    intake_reason: order.intake_reason || order.summary || "",
+    customer_concern: order.customer_concern || "",
+    paint_scope: order.paint_scope || "",
+    insurance_scope: order.insurance_scope || "",
+    insurance_company: order.insurance_company || "",
+    insurance_claim_number: order.insurance_claim_number || "",
+  }
+}
+
 export default function OrdersTable({
   initialOrders,
 }: {
@@ -622,8 +646,11 @@ export default function OrdersTable({
   const [openPhotosId, setOpenPhotosId] = useState<string | null>(null)
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
   const [openProcessId, setOpenProcessId] = useState<string | null>(null)
+  const [openEditId, setOpenEditId] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<EditOrderForm | null>(null)
   const [showNextMaintenanceModal, setShowNextMaintenanceModal] = useState(false);
   const [selectedOrderForMaintenance, setSelectedOrderForMaintenance] = useState<OrderItem | null>(null);
   const [maintenanceServiceName, setMaintenanceServiceName] = useState("Próximo mantenimiento");
@@ -782,6 +809,67 @@ export default function OrdersTable({
       alert(`Link copiado:\n${link}`)
     } catch {
       alert(`No se pudo copiar automáticamente.\nLink:\n${link}`)
+    }
+  }
+
+  function openEditOrder(order: OrderItem) {
+    setOpenEditId((prev) => {
+      const nextValue = prev === order.id ? null : order.id
+      setEditForm(nextValue ? buildEditOrderForm(order) : null)
+      return nextValue
+    })
+  }
+
+  async function saveOrderEdit(order: OrderItem) {
+    if (!editForm) return
+
+    if (!editForm.intake_reason.trim()) {
+      alert('El motivo de ingreso es obligatorio')
+      return
+    }
+
+    setEditingId(order.id)
+
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data.error || 'No se pudo actualizar la orden')
+        return
+      }
+
+      setOrders((prev) =>
+        prev.map((item) =>
+          item.id === order.id
+            ? {
+                ...item,
+                work_type: editForm.work_type,
+                summary: data.order?.summary || editForm.intake_reason.trim(),
+                intake_reason: editForm.intake_reason.trim(),
+                customer_concern: editForm.customer_concern.trim() || null,
+                paint_scope: editForm.paint_scope.trim() || null,
+                insurance_scope: editForm.insurance_scope.trim() || null,
+                insurance_company: editForm.insurance_company.trim() || null,
+                insurance_claim_number: editForm.insurance_claim_number.trim() || null,
+              }
+            : item
+        )
+      )
+
+      setOpenEditId(null)
+      setEditForm(null)
+    } catch {
+      alert('Error al actualizar la orden')
+    } finally {
+      setEditingId(null)
     }
   }
 
@@ -1028,6 +1116,14 @@ export default function OrdersTable({
 
                         <button
                           type="button"
+                          onClick={() => openEditOrder(order)}
+                          className="inline-flex justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2"
+                        >
+                          {openEditId === order.id ? 'Cerrar edición' : 'Editar'}
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() =>
                             setOpenNotesId((prev) => (prev === order.id ? null : order.id))
                           }
@@ -1102,6 +1198,164 @@ export default function OrdersTable({
                     <tr className="border-t border-zinc-800 bg-zinc-950/50">
                       <td colSpan={7} className="p-4">
                         <OrderNotes orderId={order.id} />
+                      </td>
+                    </tr>
+                  )}
+                  {openEditId === order.id && editForm && (
+                    <tr className="border-t border-zinc-800 bg-zinc-950/50">
+                      <td colSpan={7} className="p-4">
+                        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">Editar orden base</p>
+                              <p className="text-xs text-zinc-400">
+                                Corrige el tipo de trabajo y el motivo sin salir del panel.
+                              </p>
+                            </div>
+                            <span className="text-xs text-zinc-500">{order.public_code}</span>
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                                Tipo de trabajo
+                              </label>
+                              <select
+                                value={editForm.work_type}
+                                onChange={(e) =>
+                                  setEditForm((prev) =>
+                                    prev
+                                      ? { ...prev, work_type: e.target.value as OrderWorkType }
+                                      : prev
+                                  )
+                                }
+                                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                              >
+                                {ORDER_WORK_TYPES.map((workType) => (
+                                  <option key={workType} value={workType}>
+                                    {ORDER_WORK_TYPE_LABELS[workType]}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                                Reporte del cliente
+                              </label>
+                              <input
+                                value={editForm.customer_concern}
+                                onChange={(e) =>
+                                  setEditForm((prev) =>
+                                    prev ? { ...prev, customer_concern: e.target.value } : prev
+                                  )
+                                }
+                                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                                placeholder="Síntoma o contexto reportado"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-4">
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                              Motivo de ingreso
+                            </label>
+                            <textarea
+                              value={editForm.intake_reason}
+                              onChange={(e) =>
+                                setEditForm((prev) =>
+                                  prev ? { ...prev, intake_reason: e.target.value } : prev
+                                )
+                              }
+                              className="min-h-[90px] w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                              placeholder="Qué se va a revisar o resolver"
+                            />
+                          </div>
+
+                          {editForm.work_type === 'pintura' && (
+                            <div className="mt-4">
+                              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                                Alcance de pintura
+                              </label>
+                              <textarea
+                                value={editForm.paint_scope}
+                                onChange={(e) =>
+                                  setEditForm((prev) =>
+                                    prev ? { ...prev, paint_scope: e.target.value } : prev
+                                  )
+                                }
+                                className="min-h-[90px] w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                                placeholder="Piezas, color, retoque o repintado"
+                              />
+                            </div>
+                          )}
+
+                          {editForm.work_type === 'aseguradora' && (
+                            <div className="mt-4 grid gap-4">
+                              <div>
+                                <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                                  Alcance para aseguradora
+                                </label>
+                                <textarea
+                                  value={editForm.insurance_scope}
+                                  onChange={(e) =>
+                                    setEditForm((prev) =>
+                                      prev ? { ...prev, insurance_scope: e.target.value } : prev
+                                    )
+                                  }
+                                  className="min-h-[90px] w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                                  placeholder="Daños, piezas y trabajo previsto"
+                                />
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <input
+                                  value={editForm.insurance_company}
+                                  onChange={(e) =>
+                                    setEditForm((prev) =>
+                                      prev ? { ...prev, insurance_company: e.target.value } : prev
+                                    )
+                                  }
+                                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                                  placeholder="Aseguradora"
+                                />
+                                <input
+                                  value={editForm.insurance_claim_number}
+                                  onChange={(e) =>
+                                    setEditForm((prev) =>
+                                      prev
+                                        ? { ...prev, insurance_claim_number: e.target.value }
+                                        : prev
+                                    )
+                                  }
+                                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-white"
+                                  placeholder="Siniestro / referencia"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex gap-3">
+                            <button
+                              type="button"
+                              onClick={() => saveOrderEdit(order)}
+                              disabled={editingId === order.id}
+                              className="rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                            >
+                              {editingId === order.id ? 'Guardando...' : 'Guardar cambios'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenEditId(null)
+                                setEditForm(null)
+                              }}
+                              className="rounded-xl border border-zinc-700 px-5 py-3 font-semibold text-zinc-300 hover:bg-zinc-800"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   )}
