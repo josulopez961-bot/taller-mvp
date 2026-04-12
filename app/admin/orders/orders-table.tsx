@@ -173,6 +173,22 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
       : normalizedWorkType === "aseguradora"
       ? "Alcance para aseguradora"
       : "Diagnóstico y presupuesto";
+  const resolutionLabel =
+    normalizedWorkType === "pintura"
+      ? "Trabajo de pintura propuesto"
+      : "Resolución y trabajo propuesto";
+  const diagnosisPlaceholder =
+    normalizedWorkType === "pintura"
+      ? "Qué se encontró: estado de piezas, golpes, rayones, color o nivel de daño"
+      : normalizedWorkType === "aseguradora"
+      ? "Qué se encontró en la inspección del siniestro, daños visibles y piezas afectadas"
+      : "Qué se encontró en la revisión o diagnóstico técnico";
+  const resolutionPlaceholder =
+    normalizedWorkType === "pintura"
+      ? "Qué se va a hacer: preparar, enderezar, masillar, pintar, pulir o repintar"
+      : normalizedWorkType === "aseguradora"
+      ? "Qué trabajo se va a ejecutar, piezas a intervenir y alcance de reparación"
+      : "Qué trabajo se va a realizar para resolver el caso";
 
   async function handleSave() {
     setLoading(true);
@@ -265,8 +281,41 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
         </button>
       </div>
 
+      <div className="mt-4 grid gap-2 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            1. Motivo de visita
+          </p>
+          <p className="mt-2 text-sm text-white">
+            {order.intake_reason || "Sin motivo cargado"}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            2. Diagnóstico
+          </p>
+          <p className="mt-2 text-sm text-white">
+            {form.diagnosis_detail || "Pendiente de documentar"}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            3. Resolución
+          </p>
+          <p className="mt-2 text-sm text-white">
+            {form.repair_detail || "Pendiente de definir"}
+          </p>
+        </div>
+      </div>
+
       {!open && hasContent && (
         <div className="mt-4 space-y-2 text-sm text-slate-300">
+          {order.customer_concern && order.customer_concern !== order.intake_reason && (
+            <p>
+              <span className="font-semibold text-white">Reporte del cliente:</span>{" "}
+              {order.customer_concern}
+            </p>
+          )}
           <p>
             <span className="font-semibold text-white">Entrega estimada:</span>{" "}
             {form.estimated_delivery_date || "No definida"}
@@ -276,7 +325,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             {form.diagnosis_detail || "Sin detalle"}
           </p>
           <p>
-            <span className="font-semibold text-white">Reparación:</span>{" "}
+            <span className="font-semibold text-white">{resolutionLabel}:</span>{" "}
             {form.repair_detail || "Sin detalle"}
           </p>
           <p>
@@ -288,6 +337,30 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
 
       {open && (
         <div className="mt-4 grid gap-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">
+              Secuencia operativa
+            </p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Motivo de visita
+                </p>
+                <p className="mt-2 text-sm text-white">
+                  {order.intake_reason || "Sin motivo cargado"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Reporte del cliente
+                </p>
+                <p className="mt-2 text-sm text-white">
+                  {order.customer_concern || "Sin reporte adicional"}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">
               Fecha estimada de entrega
@@ -307,7 +380,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">
-              Diagnóstico
+              2. Diagnóstico técnico
             </label>
             <textarea
               value={form.diagnosis_detail}
@@ -318,13 +391,13 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                 }))
               }
               className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
-              placeholder="Qué se encontró en la revisión"
+              placeholder={diagnosisPlaceholder}
             />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">
-              Reparación propuesta
+              3. {resolutionLabel}
             </label>
             <textarea
               value={form.repair_detail}
@@ -335,7 +408,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                 }))
               }
               className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
-              placeholder="Qué trabajo se va a realizar"
+              placeholder={resolutionPlaceholder}
             />
           </div>
 
