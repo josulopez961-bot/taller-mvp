@@ -90,18 +90,20 @@ export default function ApprovalActions({
 
   if (approvalStatus === "aprobado") {
     const labels: Record<string, string> = {
-      urgente: "🔴 Mantenimiento necesario",
-      recomendado: "🟡 Puede dañarse",
-      opcional: "🟢 Recomendado",
+      urgente: "Mantenimiento necesario",
+      recomendado: "Puede dañarse",
+      opcional: "Recomendado",
     };
     const authorized = authorizedPriorities?.split(",") || [];
     return (
-      <div className="mt-6 rounded-xl border border-green-700 bg-green-900/30 p-4 text-green-300 space-y-2">
-        <p className="font-semibold">✔ Presupuesto autorizado. El taller revisará el inicio de la reparación.</p>
+      <div className="mt-6 space-y-2 rounded-xl border border-green-700 bg-green-900/30 p-4 text-green-300">
+        <p className="font-semibold">
+          Proforma autorizada. El taller revisara el inicio del trabajo.
+        </p>
         {authorized.length > 0 && (
           <div className="text-sm text-green-200/80">
-            <p className="font-medium mb-1">Servicios autorizados:</p>
-            <ul className="list-disc list-inside space-y-0.5">
+            <p className="mb-1 font-medium">Servicios autorizados:</p>
+            <ul className="list-inside list-disc space-y-0.5">
               {authorized.map((p) => (
                 <li key={p}>{labels[p] || p}</li>
               ))}
@@ -115,7 +117,7 @@ export default function ApprovalActions({
   if (approvalStatus === "rechazado") {
     return (
       <div className="mt-6 rounded-xl border border-red-700 bg-red-900/30 p-4 text-red-300">
-        ✖ Presupuesto no autorizado.
+        Proforma no autorizada.
       </div>
     );
   }
@@ -123,7 +125,8 @@ export default function ApprovalActions({
   return (
     <div className="mt-6 space-y-4">
       <p className="text-sm text-slate-400">
-        Selecciona qué servicios deseas autorizar y confirma:
+        Revisa la proforma, selecciona que servicios deseas autorizar y
+        confirma:
       </p>
 
       {availableGroups.length > 0 && (
@@ -131,7 +134,7 @@ export default function ApprovalActions({
           {availableGroups.map((g) => (
             <label
               key={g.key}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
+              className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
                 selected.includes(g.key)
                   ? `border-${g.color}-600 bg-${g.color}-950/30`
                   : "border-slate-700 bg-slate-800/40 opacity-60"
@@ -154,9 +157,13 @@ export default function ApprovalActions({
             </label>
           ))}
 
-          <div className="flex justify-between items-center pt-2 border-t border-slate-700">
-            <span className="text-sm font-semibold text-white">Total a autorizar</span>
-            <span className="text-lg font-bold text-orange-400">${selectedTotal.toFixed(2)}</span>
+          <div className="flex items-center justify-between border-t border-slate-700 pt-2">
+            <span className="text-sm font-semibold text-white">
+              Total de la proforma
+            </span>
+            <span className="text-lg font-bold text-orange-400">
+              ${selectedTotal.toFixed(2)}
+            </span>
           </div>
         </div>
       )}
@@ -167,7 +174,7 @@ export default function ApprovalActions({
           disabled={loading || selected.length === 0}
           className="rounded-xl bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
         >
-          {loading ? "Procesando..." : "Autorizar selección"}
+          {loading ? "Procesando..." : "Autorizar proforma"}
         </button>
 
         <button

@@ -14,6 +14,7 @@ import {
   getWorkTypeBadgeClass,
   normalizeOrderWorkType,
 } from "@/lib/order-work-types"
+import { buildProformaText } from "@/lib/proforma"
 
 type DiagnosisEditorProps = {
   order: OrderItem
@@ -225,6 +226,26 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
     }
   }
 
+  async function handleCopyProforma() {
+    const validItems = items.filter((item) => String(item.description || "").trim())
+    const text = buildProformaText({
+      publicCode: order.public_code,
+      workType: order.work_type,
+      plate: order.plate,
+      customerName: order.customer_name,
+      diagnosisDetail: form.diagnosis_detail,
+      repairDetail: form.repair_detail,
+      items: validItems,
+    })
+
+    try {
+      await navigator.clipboard.writeText(text)
+      alert("Proforma copiada")
+    } catch {
+      alert("No se pudo copiar la proforma")
+    }
+  }
+
   return (
     <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/60 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -401,7 +422,17 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             />
           </div>
           <div className="pt-4 border-t border-slate-700">
-            <h3 className="mb-3 text-sm font-semibold text-white">Desglose de Cotización (Opcional)</h3>
+            <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h3 className="text-sm font-semibold text-white">Proforma (Opcional)</h3>
+              <button
+                type="button"
+                onClick={handleCopyProforma}
+                disabled={items.length === 0}
+                className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+              >
+                Copiar proforma
+              </button>
+            </div>
 
             <div className="mb-4 rounded-xl border border-indigo-800 bg-indigo-950/40 p-3">
               <label className="mb-1 block text-xs font-semibold text-indigo-300">
