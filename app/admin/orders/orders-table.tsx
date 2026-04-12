@@ -77,6 +77,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
   const [generateMaintenance, setGenerateMaintenance] = useState(false);
   const [intervalKm, setIntervalKm] = useState(5000);
   const [currentKm, setCurrentKm] = useState(order.current_km || 0);
+  const [proformaSentAt, setProformaSentAt] = useState(order.proforma_sent_at || null);
   const [items, setItems] = useState<any[]>([]);
   const [itemsLoaded, setItemsLoaded] = useState(false);
   const totalFromItems = items.reduce((acc, item) => {
@@ -256,7 +257,16 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
 
     try {
       await navigator.clipboard.writeText(text)
-      alert("Proforma copiada")
+      const markRes = await fetch(`/api/admin/orders/${order.id}/proforma`, {
+        method: "POST",
+      })
+
+      if (markRes.ok) {
+        const data = await markRes.json()
+        setProformaSentAt(data.order?.proforma_sent_at || new Date().toISOString())
+      }
+
+      alert("Proforma copiada y marcada como enviada")
     } catch {
       alert("No se pudo copiar la proforma")
     }
@@ -306,6 +316,28 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             {form.repair_detail || "Pendiente de definir"}
           </p>
         </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+          proformaSentAt
+            ? 'border-orange-700 bg-orange-950/30 text-orange-300'
+            : 'border-slate-700 bg-slate-900 text-slate-400'
+        }`}>
+          {proformaSentAt
+            ? `Proforma emitida: ${formatShortDateTime(proformaSentAt)}`
+            : 'Proforma aun no emitida'}
+        </span>
+        {order.approved_at && (
+          <span className="rounded-full border border-emerald-700 bg-emerald-950/30 px-3 py-1 text-xs font-semibold text-emerald-300">
+            Aprobada: {formatShortDateTime(order.approved_at)}
+          </span>
+        )}
+        {order.rejected_at && (
+          <span className="rounded-full border border-red-700 bg-red-950/30 px-3 py-1 text-xs font-semibold text-red-300">
+            Rechazada: {formatShortDateTime(order.rejected_at)}
+          </span>
+        )}
       </div>
 
       {!open && hasContent && (
@@ -672,6 +704,10 @@ type OrderItem = {
   insurance_claim_number?: string | null
   approval_status?: string | null
   authorized_priorities?: string | null
+  proforma_sent_at?: string | null
+  approved_at?: string | null
+  rejected_at?: string | null
+  approval_decided_at?: string | null
   plate: string
   make: string
   model: string
@@ -721,6 +757,17 @@ function normalizeWhatsapp(input: string) {
   if (digits.startsWith('0')) return `593${digits.slice(1)}`
 
   return digits
+}
+
+function formatShortDateTime(value?: string | null) {
+  if (!value) return null
+
+  return new Date(value).toLocaleString('es-EC', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function buildEditOrderForm(order: OrderItem): EditOrderForm {
@@ -1168,6 +1215,21 @@ export default function OrdersTable({
                         </span>
                         {order.status !== 'recibido' && (
                           <ApprovalBadge status={order.approval_status} authorizedPriorities={order.authorized_priorities} />
+                        )}
+                        {order.proforma_sent_at && (
+                          <span className="text-xs text-orange-300">
+                            Proforma: {formatShortDateTime(order.proforma_sent_at)}
+                          </span>
+                        )}
+                        {order.approved_at && (
+                          <span className="text-xs text-emerald-300">
+                            Aprobada: {formatShortDateTime(order.approved_at)}
+                          </span>
+                        )}
+                        {order.rejected_at && (
+                          <span className="text-xs text-red-300">
+                            Rechazada: {formatShortDateTime(order.rejected_at)}
+                          </span>
                         )}
                       </div>
                     </td>

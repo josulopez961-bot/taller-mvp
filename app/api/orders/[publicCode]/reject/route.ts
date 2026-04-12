@@ -17,11 +17,18 @@ export async function POST(
       return NextResponse.json({ error: "Código inválido" }, { status: 400 });
     }
 
+    const now = new Date().toISOString();
+
     const { data, error } = await supabase
       .from("orders")
-      .update({ approval_status: "rechazado" })
+      .update({
+        approval_status: "rechazado",
+        approved_at: null,
+        rejected_at: now,
+        approval_decided_at: now,
+      })
       .eq("public_code", publicCode)
-      .select("id, public_code, approval_status");
+      .select("id, public_code, approval_status, rejected_at, approval_decided_at");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

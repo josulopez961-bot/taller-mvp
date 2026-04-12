@@ -25,11 +25,21 @@ export async function POST(
       // no body, ignore
     }
 
+    const now = new Date().toISOString();
+
     const { data, error } = await supabase
       .from("orders")
-      .update({ approval_status: "aprobado", authorized_priorities })
+      .update({
+        approval_status: "aprobado",
+        authorized_priorities,
+        approved_at: now,
+        rejected_at: null,
+        approval_decided_at: now,
+      })
       .eq("public_code", publicCode)
-      .select("id, public_code, approval_status, authorized_priorities");
+      .select(
+        "id, public_code, approval_status, authorized_priorities, approved_at, approval_decided_at"
+      );
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
