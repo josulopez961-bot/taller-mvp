@@ -708,6 +708,11 @@ type OrderItem = {
   approved_at?: string | null
   rejected_at?: string | null
   approval_decided_at?: string | null
+  diagnosis_started_at?: string | null
+  work_started_at?: string | null
+  testing_started_at?: string | null
+  ready_at?: string | null
+  delivered_at?: string | null
   plate: string
   make: string
   model: string
@@ -768,6 +773,15 @@ function formatShortDateTime(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function getOperationalTimeLabel(order: OrderItem) {
+  if (order.delivered_at) return `Entregada: ${formatShortDateTime(order.delivered_at)}`
+  if (order.ready_at) return `Lista: ${formatShortDateTime(order.ready_at)}`
+  if (order.testing_started_at) return `Pruebas: ${formatShortDateTime(order.testing_started_at)}`
+  if (order.work_started_at) return `Trabajo: ${formatShortDateTime(order.work_started_at)}`
+  if (order.diagnosis_started_at) return `Diagnostico: ${formatShortDateTime(order.diagnosis_started_at)}`
+  return null
 }
 
 function buildEditOrderForm(order: OrderItem): EditOrderForm {
@@ -1229,6 +1243,11 @@ export default function OrdersTable({
                         {order.rejected_at && (
                           <span className="text-xs text-red-300">
                             Rechazada: {formatShortDateTime(order.rejected_at)}
+                          </span>
+                        )}
+                        {getOperationalTimeLabel(order) && (
+                          <span className="text-xs text-sky-300">
+                            {getOperationalTimeLabel(order)}
                           </span>
                         )}
                       </div>
