@@ -87,9 +87,19 @@ export async function DELETE(
       return NextResponse.json({ error: photosError.message }, { status: 500 });
     }
 
+    const { data: orderFileData } = await supabase
+      .from("orders")
+      .select("invoice_storage_path")
+      .eq("id", id)
+      .single();
+
     const storagePaths = (photos || [])
       .map((photo) => photo.storage_path)
       .filter(Boolean);
+
+    if (orderFileData?.invoice_storage_path) {
+      storagePaths.push(orderFileData.invoice_storage_path);
+    }
 
     if (storagePaths.length > 0) {
       await supabase.storage.from("order-photos").remove(storagePaths);

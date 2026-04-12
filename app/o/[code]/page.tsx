@@ -85,6 +85,9 @@ export default async function OrderPublicPage({
       diagnosis_detail,
       repair_detail,
       repair_cost,
+      scope_text,
+      invoice_url,
+      invoice_file_name,
       paint_scope,
       insurance_scope,
       insurance_company,
@@ -432,6 +435,15 @@ export default async function OrderPublicPage({
               );
             })()}
 
+            {(order as any).scope_text && (
+              <div className="rounded-xl border border-blue-800/30 bg-blue-900/10 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">
+                  Alcance actual
+                </p>
+                <p className="text-sm text-slate-300">{(order as any).scope_text}</p>
+              </div>
+            )}
+
             {/* Fotos del proceso */}
             {processPhotos && processPhotos.length > 0 && (
               <div>
@@ -468,6 +480,22 @@ export default async function OrderPublicPage({
               <div className="rounded-xl border border-emerald-800/40 bg-emerald-900/10 p-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">Recomendaciones del taller</p>
                 <p className="text-slate-300 text-sm">{(order as any).recommendations}</p>
+              </div>
+            )}
+
+            {(order as any).invoice_url && (
+              <div className="rounded-xl border border-emerald-800/40 bg-emerald-900/10 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                  Factura digital
+                </p>
+                <a
+                  href={(order as any).invoice_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+                >
+                  {(order as any).invoice_file_name || "Ver factura"}
+                </a>
               </div>
             )}
 
