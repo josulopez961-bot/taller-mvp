@@ -37,11 +37,35 @@ export async function POST(req: Request) {
       estimated_delivery_date,
     } = body;
 
-    if (!plate || !customer_name || !whatsapp || !intake_reason) {
+    const normalizedPlate = String(plate || "").trim().toUpperCase();
+    const normalizedCustomerName = String(customer_name || "").trim();
+    const normalizedWhatsapp = String(whatsapp || "").trim();
+    const normalizedMake = String(make || "").trim();
+    const normalizedModel = String(model || "").trim();
+    const normalizedEngine = String(engine || "").trim();
+    const normalizedIntakeReason = String(intake_reason || "").trim();
+    const normalizedCustomerConcern = String(customer_concern || "").trim();
+    const normalizedPaintScope = String(paint_scope || "").trim();
+    const normalizedInsuranceScope = String(insurance_scope || "").trim();
+    const normalizedInsuranceCompany = String(insurance_company || "").trim();
+    const normalizedInsuranceClaimNumber = String(
+      insurance_claim_number || ""
+    ).trim();
+    const normalizedYear = year ? Number(year) : null;
+    const normalizedIntakeKm = intake_km ? Number(intake_km) : null;
+
+    if (
+      !normalizedPlate ||
+      !normalizedCustomerName ||
+      !normalizedWhatsapp ||
+      !normalizedMake ||
+      !normalizedModel ||
+      !normalizedIntakeReason
+    ) {
       return NextResponse.json(
         {
           error:
-            "Placa, cliente, WhatsApp y motivo de ingreso son obligatorios",
+            "Placa, cliente, WhatsApp, marca, modelo y motivo de visita son obligatorios",
         },
         { status: 400 }
       );
@@ -50,9 +74,6 @@ export async function POST(req: Request) {
     const normalizedWorkType = normalizeOrderWorkType(work_type);
     let customerId: string;
     let vehicleId: string;
-
-    const normalizedWhatsapp = String(whatsapp).trim();
-    const normalizedPlate = String(plate).trim().toUpperCase();
 
     const { data: existingCustomer, error: existingCustomerError } =
       await supabase
@@ -70,11 +91,31 @@ export async function POST(req: Request) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
+
+      if (
+        existingCustomer.full_name !== normalizedCustomerName ||
+        (normalizedWhatsapp && existingCustomer.whatsapp !== normalizedWhatsapp)
+      ) {
+        const { error: updateCustomerError } = await supabase
+          .from("customers")
+          .update({
+            full_name: normalizedCustomerName,
+            whatsapp: normalizedWhatsapp,
+          })
+          .eq("id", customerId);
+
+        if (updateCustomerError) {
+          return NextResponse.json(
+            { error: updateCustomerError.message },
+            { status: 500 }
+          );
+        }
+      }
     } else {
       const { data: newCustomer, error: customerError } = await supabase
         .from("customers")
         .insert({
-          full_name: customer_name,
+          full_name: normalizedCustomerName,
           whatsapp: normalizedWhatsapp,
         })
         .select("id")
@@ -107,16 +148,33 @@ export async function POST(req: Request) {
 
     if (existingVehicle) {
       vehicleId = existingVehicle.id;
+
+      const { error: updateVehicleError } = await supabase
+        .from("vehicles")
+        .update({
+          make: normalizedMake,
+          model: normalizedModel,
+          year: normalizedYear,
+          engine: normalizedEngine || null,
+        })
+        .eq("id", vehicleId);
+
+      if (updateVehicleError) {
+        return NextResponse.json(
+          { error: updateVehicleError.message },
+          { status: 500 }
+        );
+      }
     } else {
       const { data: newVehicle, error: vehicleError } = await supabase
         .from("vehicles")
         .insert({
           customer_id: customerId,
           plate: normalizedPlate,
-          make: make || null,
-          model: model || null,
-          year: year || null,
-          engine: engine || null,
+          make: normalizedMake,
+          model: normalizedModel,
+          year: normalizedYear,
+          engine: normalizedEngine || null,
         })
         .select("id")
         .single();
@@ -163,19 +221,19 @@ export async function POST(req: Request) {
         public_code,
         status: "recibido",
         work_type: normalizedWorkType,
-        summary: getOrderSummary(normalizedWorkType, intake_reason),
+        summary: getOrderSummary(normalizedWorkType, normalizedIntakeReason),
         estimated_delivery_date: estimated_delivery_date || null,
-        intake_reason: intake_reason || null,
+        intake_reason: normalizedIntakeReason,
         customer_concern:
           normalizedWorkType === "falla_puntual" ||
           normalizedWorkType === "aseguradora"
-            ? customer_concern || null
+            ? normalizedCustomerConcern || null
             : null,
-        paint_scope: paint_scope || null,
-        insurance_scope: insurance_scope || null,
-        insurance_company: insurance_company || null,
-        insurance_claim_number: insurance_claim_number || null,
-        current_km: intake_km ? Number(intake_km) : null,
+        paint_scope: normalizedPaintScope || null,
+        insurance_scope: normalizedInsuranceScope || null,
+        insurance_company: normalizedInsuranceCompany || null,
+        insurance_claim_number: normalizedInsuranceClaimNumber || null,
+        current_km: normalizedIntakeKm,
         approval_status: "pendiente",
       })
       .select("id, public_code")

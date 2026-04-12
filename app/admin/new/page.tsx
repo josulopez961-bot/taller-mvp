@@ -206,17 +206,19 @@ export default function AdminNewOrderPage() {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <input
                 name="make"
-                placeholder="Marca"
+                placeholder="Marca *"
                 value={form.make}
                 onChange={handleChange}
                 className={inputClass}
+                required
               />
               <input
                 name="model"
-                placeholder="Modelo"
+                placeholder="Modelo *"
                 value={form.model}
                 onChange={handleChange}
                 className={inputClass}
+                required
               />
               <input
                 name="year"
@@ -240,16 +242,21 @@ export default function AdminNewOrderPage() {
         <section>
           <p className={sectionLabel}>Ingreso</p>
           <div className="space-y-3">
+            <p className="text-sm text-slate-400">
+              Registra primero el motivo de visita para que la orden nazca clara
+              desde el ingreso y luego herede bien el flujo de mantenimiento,
+              pintura, falla puntual o aseguradora.
+            </p>
             <textarea
               name="intake_reason"
               placeholder={
                 isMaintenance
-                  ? "Servicio solicitado o mantenimiento a realizar"
+                  ? "Motivo de visita: servicio solicitado o mantenimiento a realizar"
                   : isPaint
-                  ? "Que pieza o area requiere pintura"
+                  ? "Motivo de visita: que pieza o area requiere pintura"
                   : isInsurance
-                  ? "Resumen inicial del siniestro o alcance"
-                  : "Motivo de ingreso y sintoma reportado"
+                  ? "Motivo de visita: resumen inicial del siniestro o alcance"
+                  : "Motivo de visita y sintoma reportado"
               }
               value={form.intake_reason}
               onChange={handleChange}
