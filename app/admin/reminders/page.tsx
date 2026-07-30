@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import MarkPlanUsedButton from "./mark-plan-used-button";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -343,6 +344,7 @@ function ReminderCard({ row }: { row: ReminderRow }) {
             <span>📲</span> WhatsApp
           </a>
         )}
+        <MarkPlanUsedButton planId={row.planId} />
       </div>
     </div>
   );

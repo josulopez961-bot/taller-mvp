@@ -101,6 +101,7 @@ export default async function OrderPublicPage({
         make,
         model,
         year,
+        odometer_unit,
         customer:customers (
           full_name,
           whatsapp
@@ -535,6 +536,7 @@ export default async function OrderPublicPage({
             }))}
             plate={vehicle?.plate || ''}
             workshopWhatsapp={process.env.NEXT_PUBLIC_WORKSHOP_WHATSAPP || ''}
+            odometerUnit={(vehicle as { odometer_unit?: string | null } | null)?.odometer_unit}
           />
         )}
 

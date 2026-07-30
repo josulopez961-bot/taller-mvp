@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     const make = String(body.make || '').trim()
     const model = String(body.model || '').trim()
     const engine = String(body.engine || '').trim()
+    const odometerUnit = body.odometer_unit === 'mi' ? 'mi' : body.odometer_unit === 'km' ? 'km' : null
     const intakeReason = String(body.intake_reason || body.summary || '').trim()
     const summary = getOrderSummary(body.work_type, intakeReason)
     const year = body.year ? Number(body.year) : null
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
           model,
           year: year || null,
           engine: engine || null,
+          odometer_unit: odometerUnit || 'km',
         })
         .select('id')
         .single()
@@ -100,6 +102,7 @@ export async function POST(req: Request) {
           model,
           year: year || null,
           engine: engine || null,
+          ...(odometerUnit ? { odometer_unit: odometerUnit } : {}),
         })
         .eq('id', vehicleId)
 

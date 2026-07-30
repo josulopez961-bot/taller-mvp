@@ -16,6 +16,7 @@ type FormState = {
   model: string;
   year: string;
   engine: string;
+  odometer_unit: "km" | "mi";
   intake_km: string;
   work_type: OrderWorkType;
   intake_reason: string;
@@ -35,6 +36,7 @@ const initialForm: FormState = {
   model: "",
   year: "",
   engine: "",
+  odometer_unit: "km",
   intake_km: "",
   work_type: "mantenimiento",
   intake_reason: "",
@@ -85,6 +87,7 @@ export default function AdminNewOrderPage() {
           model: form.model.trim() || null,
           year: form.year ? Number(form.year) : null,
           engine: form.engine.trim() || null,
+          odometer_unit: form.odometer_unit,
           intake_km: form.intake_km ? Number(form.intake_km) : null,
           work_type: form.work_type,
           intake_reason: form.intake_reason.trim() || null,
@@ -313,14 +316,30 @@ export default function AdminNewOrderPage() {
             )}
 
             <div className="grid grid-cols-2 gap-3">
+              <select
+                name="odometer_unit"
+                value={form.odometer_unit}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    odometer_unit: e.target.value === "mi" ? "mi" : "km",
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="km">Kilómetros (km)</option>
+                <option value="mi">Millas (mi)</option>
+              </select>
               <input
                 name="intake_km"
                 type="number"
-                placeholder="KM al ingreso"
+                placeholder={form.odometer_unit === "mi" ? "Millas al ingreso" : "KM al ingreso"}
                 value={form.intake_km}
                 onChange={handleChange}
                 className={inputClass}
               />
+            </div>
+            <div className="grid grid-cols-1 gap-3">
               <div>
                 <label className="mb-1 block text-xs text-slate-400">
                   Fecha estimada de entrega

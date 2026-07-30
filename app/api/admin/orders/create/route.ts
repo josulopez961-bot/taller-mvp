@@ -26,6 +26,7 @@ export async function POST(req: Request) {
       model,
       year,
       engine,
+      odometer_unit,
       intake_km,
       work_type,
       intake_reason,
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
     const normalizedMake = String(make || "").trim();
     const normalizedModel = String(model || "").trim();
     const normalizedEngine = String(engine || "").trim();
+    const normalizedOdometerUnit = odometer_unit === "mi" ? "mi" : odometer_unit === "km" ? "km" : null;
     const normalizedIntakeReason = String(intake_reason || "").trim();
     const normalizedCustomerConcern = String(customer_concern || "").trim();
     const normalizedPaintScope = String(paint_scope || "").trim();
@@ -156,6 +158,7 @@ export async function POST(req: Request) {
           model: normalizedModel,
           year: normalizedYear,
           engine: normalizedEngine || null,
+          ...(normalizedOdometerUnit ? { odometer_unit: normalizedOdometerUnit } : {}),
         })
         .eq("id", vehicleId);
 
@@ -175,6 +178,7 @@ export async function POST(req: Request) {
           model: normalizedModel,
           year: normalizedYear,
           engine: normalizedEngine || null,
+          odometer_unit: normalizedOdometerUnit || "km",
         })
         .select("id")
         .single();
@@ -244,6 +248,15 @@ export async function POST(req: Request) {
         { error: orderError?.message || "No se pudo crear la orden" },
         { status: 500 }
       );
+    }
+
+    if (normalizedIntakeKm !== null) {
+      await supabase
+        .from("maintenance_plans")
+        .update({ status: "used" })
+        .eq("vehicle_id", vehicleId)
+        .eq("status", "scheduled")
+        .lte("visible_from_km", normalizedIntakeKm);
     }
 
     const appUrl =

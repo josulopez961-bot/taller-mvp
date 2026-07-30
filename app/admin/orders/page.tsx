@@ -48,6 +48,7 @@ export default async function AdminOrdersPage() {
         plate,
         make,
         model,
+        odometer_unit,
         customers (
           id,
           full_name,
@@ -104,6 +105,7 @@ export default async function AdminOrdersPage() {
         plate: vehicle?.plate || '',
         make: vehicle?.make || '',
         model: vehicle?.model || '',
+        odometer_unit: vehicle?.odometer_unit || 'km',
         customer_id: customer?.id || null,
         customer_name: customer?.full_name || '',
         whatsapp: customer?.whatsapp || '',

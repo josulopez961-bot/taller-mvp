@@ -1,6 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import {
+  formatOdometer,
+  getOdometerReadingLabel,
+  getOdometerUnitLabel,
+  maintenanceItemTotal,
+} from '@/lib/odometer'
 
 type PlanItem = {
   category: 'labor' | 'part' | 'supply'
@@ -38,12 +44,16 @@ export default function MaintenanceAlert({
   plans,
   plate,
   workshopWhatsapp,
+  odometerUnit,
 }: {
   plans: MaintenancePlan[]
   plate: string
   workshopWhatsapp: string
+  odometerUnit?: string | null
 }) {
   const [kmInput, setKmInput] = useState('')
+  const unitLabel = getOdometerUnitLabel(odometerUnit)
+  const readingLabel = getOdometerReadingLabel(odometerUnit)
 
   const activePlans = plans.filter((p) => p.status === 'scheduled')
   if (activePlans.length === 0) return null
@@ -59,7 +69,7 @@ export default function MaintenanceAlert({
   const laborItems = plan.items.filter((i) => i.category === 'labor')
   const partItems = plan.items.filter((i) => i.category === 'part')
   const supplyItems = plan.items.filter((i) => i.category === 'supply')
-  const totalCost = plan.items.reduce((acc, i) => acc + i.qty * i.unit_price, 0)
+  const totalCost = plan.items.reduce((acc, i) => acc + maintenanceItemTotal(i), 0)
 
   const kmRestantes =
     currentKm !== null ? Math.max(plan.next_service_km - currentKm, 0) : null
@@ -68,7 +78,7 @@ export default function MaintenanceAlert({
     const phone = workshopWhatsapp.replace(/\D/g, '')
     const msg =
       currentKm !== null
-        ? `Hola, soy dueño del vehículo con placa ${plate}. Me acerco a mi próximo mantenimiento (${plan.service_name}) programado para los ${plan.next_service_km.toLocaleString()} km. Actualmente tengo ${currentKm.toLocaleString()} km. ¿Podemos agendar una cita?`
+        ? `Hola, soy dueño del vehículo con placa ${plate}. Me acerco a mi próximo mantenimiento (${plan.service_name}) programado para los ${formatOdometer(plan.next_service_km, unitLabel)}. Actualmente tengo ${formatOdometer(currentKm, unitLabel)}. ¿Podemos agendar una cita?`
         : `Hola, soy dueño del vehículo con placa ${plate}. Quisiera agendar mi próximo mantenimiento: ${plan.service_name}.`
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
   }
@@ -130,14 +140,14 @@ export default function MaintenanceAlert({
         )}
       </div>
 
-      {/* Input KM actual */}
+      {/* Input de odómetro actual */}
       <div className="mt-5">
         <label className="mb-2 block text-sm font-medium text-slate-300">
-          Ingresa tu kilometraje actual para ver qué tan cerca estás
+          Ingresa tu {readingLabel} actual para ver qué tan cerca estás
         </label>
         <input
           type="number"
-          placeholder="Ej: 85000"
+          placeholder={unitLabel === 'mi' ? 'Ej: 52000' : 'Ej: 85000'}
           value={kmInput}
           onChange={(e) => setKmInput(e.target.value)}
           className="w-full max-w-xs rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-orange-500"
@@ -147,9 +157,9 @@ export default function MaintenanceAlert({
       {/* Barra de progreso */}
       <div className="mt-5">
         <div className="mb-2 flex justify-between text-xs text-slate-400">
-          <span>{plan.last_service_km.toLocaleString()} km</span>
+          <span>{formatOdometer(plan.last_service_km, unitLabel)}</span>
           <span className="font-semibold text-white">
-            Meta: {plan.next_service_km.toLocaleString()} km
+            Meta: {formatOdometer(plan.next_service_km, unitLabel)}
           </span>
         </div>
         <div className="h-4 w-full overflow-hidden rounded-full bg-slate-700">
@@ -163,14 +173,14 @@ export default function MaintenanceAlert({
         {currentKm !== null && (
           <div className="mt-2 flex items-center justify-between text-sm">
             <span className="text-slate-400">
-              KM actual:{' '}
+              {readingLabel.toUpperCase()} actual:{' '}
               <span className="font-semibold text-white">
-                {currentKm.toLocaleString()} km
+                {formatOdometer(currentKm, unitLabel)}
               </span>
             </span>
             {kmRestantes !== null && kmRestantes > 0 ? (
               <span className={`font-semibold ${style?.title}`}>
-                Faltan {kmRestantes.toLocaleString()} km
+                Faltan {formatOdometer(kmRestantes, unitLabel)}
               </span>
             ) : (
               <span className="font-semibold text-red-400">
@@ -184,19 +194,19 @@ export default function MaintenanceAlert({
       {/* Alerta contextual */}
       {alertLevel === 'urgent' && (
         <div className="mt-4 rounded-xl border border-red-600 bg-red-900/30 p-4 text-sm text-red-300">
-          Tu vehículo ya superó el kilometraje de mantenimiento ({plan.next_service_km.toLocaleString()} km).
+          Tu vehículo ya superó el {readingLabel} de mantenimiento ({formatOdometer(plan.next_service_km, unitLabel)}).
           Te recomendamos agendar una cita lo antes posible.
         </div>
       )}
       {alertLevel === 'warning' && kmRestantes !== null && (
         <div className="mt-4 rounded-xl border border-orange-600 bg-orange-900/30 p-4 text-sm text-orange-300">
-          Te faltan solo {kmRestantes.toLocaleString()} km para tu próximo mantenimiento.
+          Te faltan solo {formatOdometer(kmRestantes, unitLabel)} para tu próximo mantenimiento.
           Es buen momento para agendar tu cita.
         </div>
       )}
       {alertLevel === 'ok' && (
         <div className="mt-4 rounded-xl border border-green-700 bg-green-900/30 p-4 text-sm text-green-300">
-          Tu vehículo está al día. El próximo mantenimiento es a los {plan.next_service_km.toLocaleString()} km.
+          Tu vehículo está al día. El próximo mantenimiento es a los {formatOdometer(plan.next_service_km, unitLabel)}.
         </div>
       )}
 
@@ -218,7 +228,7 @@ export default function MaintenanceAlert({
                     <span>
                       {item.qty}× {item.description}
                     </span>
-                    <span>${(item.qty * item.unit_price).toFixed(2)}</span>
+                    <span>${maintenanceItemTotal(item).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
@@ -236,7 +246,7 @@ export default function MaintenanceAlert({
                     <span>
                       {item.qty}× {item.description}
                     </span>
-                    <span>${(item.qty * item.unit_price).toFixed(2)}</span>
+                    <span>${maintenanceItemTotal(item).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
@@ -254,7 +264,7 @@ export default function MaintenanceAlert({
                     <span>
                       {item.qty}× {item.description}
                     </span>
-                    <span>${(item.qty * item.unit_price).toFixed(2)}</span>
+                    <span>${maintenanceItemTotal(item).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>

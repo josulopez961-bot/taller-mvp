@@ -100,6 +100,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: orderError?.message }, { status: 500 });
     }
 
+    const serviceKm = km ? Number(km) : null;
+    if (serviceKm !== null) {
+      await supabase
+        .from("maintenance_plans")
+        .update({ status: "used" })
+        .eq("vehicle_id", vehicleId)
+        .eq("status", "scheduled")
+        .lte("visible_from_km", serviceKm);
+    }
+
     // Insertar items del servicio
     if (items && items.length > 0) {
       const cleanItems = items

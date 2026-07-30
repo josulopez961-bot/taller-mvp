@@ -23,6 +23,7 @@ export async function GET(req: Request) {
     .select(`
       id, service_name, last_service_km, next_service_km,
       service_interval_km, status, prev_service_km, prev_service_date,
+      visible_from_km, created_at,
       vehicle:vehicles (
         id, plate, make, model,
         customer:customers ( full_name, whatsapp )
@@ -56,11 +57,23 @@ export async function GET(req: Request) {
 
   const today = new Date();
   const alertRows: { name: string; plate: string; makeModel: string; kmRemaining: number; nextKm: number }[] = [];
+  const usedPlanIds: string[] = [];
 
   for (const plan of plans) {
     const vehicle = Array.isArray(plan.vehicle) ? (plan.vehicle as any[])[0] : plan.vehicle as any;
     const customer = vehicle ? (Array.isArray(vehicle.customer) ? vehicle.customer[0] : vehicle.customer) : null;
     const history = vehicle?.id ? (kmHistoryByVehicle[vehicle.id] || []) : [];
+
+    const planCreatedAt = new Date((plan as any).created_at);
+    const visibleFromKm = Number((plan as any).visible_from_km || (plan as any).next_service_km || 0);
+    const wasAlreadyServiced = history.some((entry) => {
+      return entry.date > planCreatedAt && entry.km >= visibleFromKm;
+    });
+
+    if (wasAlreadyServiced) {
+      usedPlanIds.push((plan as any).id);
+      continue;
+    }
 
     let estimatedCurrentKm: number | null = null;
 
@@ -97,6 +110,13 @@ export async function GET(req: Request) {
         nextKm: (plan as any).next_service_km,
       });
     }
+  }
+
+  if (usedPlanIds.length > 0) {
+    await supabase
+      .from("maintenance_plans")
+      .update({ status: "used" })
+      .in("id", usedPlanIds);
   }
 
   if (alertRows.length === 0) {

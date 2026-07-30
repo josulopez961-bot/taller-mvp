@@ -6,6 +6,7 @@ import {
   getWorkTypeBadgeClass,
   normalizeOrderWorkType,
 } from "@/lib/order-work-types";
+import { formatOdometer, getOdometerReadingLabel, getOdometerUnitLabel } from "@/lib/odometer";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,7 +42,7 @@ export default async function VehicleHistoryPage({
   const { data: vehicle } = await supabase
     .from("vehicles")
     .select(`
-      id, plate, make, model, year, engine,
+      id, plate, make, model, year, engine, odometer_unit,
       customer:customers ( full_name, whatsapp )
     `)
     .eq("plate", decodedPlate)
@@ -77,6 +78,9 @@ export default async function VehicleHistoryPage({
 
   const totalVisits = orders?.length || 0;
   const lastKm = orders?.[0]?.current_km;
+  const odometerSource = vehicle as { odometer_unit?: string | null };
+  const odometerUnit = getOdometerUnitLabel(odometerSource.odometer_unit);
+  const odometerReadingLabel = getOdometerReadingLabel(odometerSource.odometer_unit);
 
   return (
     <div className="min-h-screen bg-[#050816] text-white p-6">
@@ -120,9 +124,9 @@ export default async function VehicleHistoryPage({
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-white">
-                {lastKm ? `${lastKm.toLocaleString()} km` : "—"}
+                {lastKm ? formatOdometer(lastKm, odometerUnit) : "—"}
               </p>
-              <p className="text-xs text-slate-400 mt-1">Último KM registrado</p>
+              <p className="text-xs text-slate-400 mt-1">Último {odometerReadingLabel.toUpperCase()} registrado</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-white">{plans?.length || 0}</p>
@@ -212,7 +216,7 @@ export default async function VehicleHistoryPage({
                         </span>
                         {order.current_km && (
                           <span className="text-sm text-slate-300">
-                            {order.current_km.toLocaleString()} km
+                            {formatOdometer(order.current_km, odometerUnit)}
                           </span>
                         )}
                         <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${
@@ -456,8 +460,8 @@ export default async function VehicleHistoryPage({
                   <div>
                     <p className="font-semibold text-white">{plan.service_name}</p>
                     <p className="text-xs text-slate-400 mt-1">
-                      Desde {plan.last_service_km?.toLocaleString()} km →{" "}
-                      Próximo a {plan.next_service_km?.toLocaleString()} km
+                      Desde {formatOdometer(plan.last_service_km, odometerUnit)} →{" "}
+                      Próximo a {formatOdometer(plan.next_service_km, odometerUnit)}
                     </p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${

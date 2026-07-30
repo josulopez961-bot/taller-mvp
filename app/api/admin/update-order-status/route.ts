@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     const { data: existingOrder, error: existingOrderError } = await supabase
       .from('orders')
       .select(
-        'id, diagnosis_started_at, work_started_at, testing_started_at, ready_at, delivered_at'
+        'id, approval_status, authorized_priorities, approved_at, diagnosis_started_at, work_started_at, testing_started_at, ready_at, delivered_at'
       )
       .eq('id', orderId)
       .maybeSingle()
@@ -65,6 +65,13 @@ export async function POST(req: Request) {
 
     if (!existingOrder) {
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+    }
+
+    if (normalizedStatus === 'en_proceso' && existingOrder.approval_status !== 'aprobado') {
+      return NextResponse.json(
+        { error: 'Primero debe estar autorizado.' },
+        { status: 409 }
+      )
     }
 
     const payload = {
@@ -81,16 +88,20 @@ export async function POST(req: Request) {
         statusIndex >= 5 ? existingOrder.delivered_at || stageTimestamps.delivered_at : null,
     }
 
-    const { error } = await supabase
+    const { data: updatedOrder, error } = await supabase
       .from('orders')
       .update(payload)
       .eq('id', orderId)
+      .select(
+        'id, status, approval_status, authorized_priorities, approved_at, diagnosis_started_at, work_started_at, testing_started_at, ready_at, delivered_at'
+      )
+      .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, order: updatedOrder })
   } catch {
     return NextResponse.json(
       { error: 'Error interno al actualizar estado' },

@@ -15,6 +15,12 @@ import {
   normalizeOrderWorkType,
 } from "@/lib/order-work-types"
 import { buildProformaText } from "@/lib/proforma"
+import {
+  formatOdometer,
+  getOdometerReadingLabel,
+  getOdometerUnitLabel,
+  maintenanceItemTotal,
+} from "@/lib/odometer"
 
 type DiagnosisEditorProps = {
   order: OrderItem
@@ -30,10 +36,47 @@ type EditOrderForm = {
   insurance_claim_number: string
 }
 
+type EditableNumber = number | ""
+
+type MaintenanceItem = {
+  category: "labor" | "part" | "supply"
+  description: string
+  qty: EditableNumber
+  unit_price: EditableNumber
+}
+
+type QuoteItem = MaintenanceItem & {
+  priority: string
+}
+
+type RawQuoteItem = {
+  category?: unknown
+  priority?: unknown
+  description?: unknown
+  qty?: unknown
+  unit_price?: unknown
+}
+
+function parseEditableNumber(value: string): EditableNumber {
+  return value === "" ? "" : Number(value)
+}
+
+function numberFromEditable(value: unknown): number {
+  return Number(value || 0)
+}
+
 const PRIORITY_ICONS: Record<string, string> = {
   urgente: "🔴",
   recomendado: "🟡",
   opcional: "🟢",
+  especial: "🟣",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  urgente: "Mantenimiento necesario",
+  recomendado: "Puede dañarse",
+  opcional: "Recomendado",
+  especial: "Servicio especializado",
 };
 
 function ApprovalBadge({ status, authorizedPriorities }: { status?: string | null; authorizedPriorities?: string | null }) {
@@ -68,21 +111,27 @@ function ApprovalBadge({ status, authorizedPriorities }: { status?: string | nul
 function DiagnosisEditor({ order }: DiagnosisEditorProps) {
   const router = useRouter();
   const isDiagnostic = order.status === "diagnostico";
+  const odometerUnit = getOdometerUnitLabel(order.odometer_unit);
+  const odometerReadingLabel = getOdometerReadingLabel(order.odometer_unit);
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [authorizing, setAuthorizing] = useState(false);
 
   const [generateMaintenance, setGenerateMaintenance] = useState(false);
   const [intervalKm, setIntervalKm] = useState(5000);
   const [currentKm, setCurrentKm] = useState(order.current_km || 0);
   const [proformaSentAt, setProformaSentAt] = useState(order.proforma_sent_at || null);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<QuoteItem[]>([]);
   const [itemsLoaded, setItemsLoaded] = useState(false);
+  const [adminSelectedPriorities, setAdminSelectedPriorities] = useState<string[]>(
+    order.authorized_priorities?.split(",").filter(Boolean) || []
+  );
   const totalFromItems = items.reduce((acc, item) => {
-    const qty = Number(item.qty || 0)
-    const price = Number(item.unit_price || 0)
+    const qty = numberFromEditable(item.qty)
+    const price = numberFromEditable(item.unit_price)
     return acc + qty * price
   }, 0)
   const [form, setForm] = useState({
@@ -115,19 +164,27 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
       try {
         const res = await fetch(`/api/admin/orders/${order.id}/quote-items`);
         if (res.ok) {
-          const data = await res.json();
+          const data: unknown = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             const priorityOrder: Record<string, number> = { urgente: 0, recomendado: 1, opcional: 2, especial: 3 };
             setItems(
               data
-                .map((item: any) => ({
-                  category: item.category,
-                  priority: item.priority || 'urgente',
-                  description: item.description,
-                  qty: Number(item.qty),
-                  unit_price: Number(item.unit_price),
-                }))
-                .sort((a: any, b: any) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9))
+                .map((item): QuoteItem => {
+                  const raw = item as RawQuoteItem
+                  const category =
+                    raw.category === "part" || raw.category === "supply"
+                      ? raw.category
+                      : "labor"
+
+                  return {
+                    category,
+                    priority: typeof raw.priority === "string" ? raw.priority : "urgente",
+                    description: typeof raw.description === "string" ? raw.description : "",
+                    qty: Number(raw.qty || 0),
+                    unit_price: Number(raw.unit_price || 0),
+                  }
+                })
+                .sort((a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9))
             );
           }
         }
@@ -139,6 +196,36 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
     }
     loadQuoteItems();
   }, [open, order.id, itemsLoaded]);
+
+  const approvalGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; total: number; count: number }>();
+
+    items.forEach((item) => {
+      if (!String(item.description || "").trim()) return;
+      const key = item.priority || "urgente";
+      const current = groups.get(key) || { key, total: 0, count: 0 };
+      current.count += 1;
+      current.total += numberFromEditable(item.qty) * numberFromEditable(item.unit_price);
+      groups.set(key, current);
+    });
+
+    const order: Record<string, number> = { urgente: 0, recomendado: 1, opcional: 2, especial: 3 };
+    return Array.from(groups.values()).sort((a, b) => (order[a.key] ?? 9) - (order[b.key] ?? 9));
+  }, [items]);
+
+  const availableApprovalKeys = useMemo(
+    () => approvalGroups.map((group) => group.key),
+    [approvalGroups]
+  );
+  const selectedAdminTotal = approvalGroups
+    .filter((group) => adminSelectedPriorities.includes(group.key))
+    .reduce((sum, group) => sum + group.total, 0);
+
+  useEffect(() => {
+    if (adminSelectedPriorities.length === 0 && availableApprovalKeys.length > 0) {
+      setAdminSelectedPriorities(availableApprovalKeys);
+    }
+  }, [adminSelectedPriorities.length, availableApprovalKeys]);
 
   async function handleAiParse() {
     if (!aiText.trim()) return;
@@ -160,6 +247,71 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
       alert("Error de conexión con IA");
     } finally {
       setAiLoading(false);
+    }
+  }
+
+  function serializeQuoteItems() {
+    return items.map((item) => ({
+      ...item,
+      qty: numberFromEditable(item.qty),
+      unit_price: numberFromEditable(item.unit_price),
+    }));
+  }
+
+  function toggleAdminPriority(priority: string) {
+    setAdminSelectedPriorities((prev) =>
+      prev.includes(priority)
+        ? prev.filter((item) => item !== priority)
+        : [...prev, priority]
+    );
+  }
+
+  async function handleAdminAuthorize() {
+    if (adminSelectedPriorities.length === 0) {
+      alert("Selecciona al menos un grupo para autorizar.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Vas a autorizar estos trabajos desde el taller. ¿Confirmas la autorización?"
+    );
+
+    if (!confirmed) return;
+
+    setAuthorizing(true);
+    try {
+      if (items.length > 0) {
+        const quoteRes = await fetch(`/api/admin/orders/${order.id}/quote-items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: serializeQuoteItems() }),
+        });
+
+        if (!quoteRes.ok) {
+          const data = await quoteRes.json();
+          alert(data.error || "No se pudieron guardar los items antes de autorizar.");
+          return;
+        }
+      }
+
+      const res = await fetch(`/api/admin/orders/${order.id}/authorize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorized_priorities: adminSelectedPriorities.join(",") }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "No se pudo autorizar desde taller.");
+        return;
+      }
+
+      alert("Trabajos autorizados desde taller.");
+      router.refresh();
+    } catch {
+      alert("Error al autorizar desde taller.");
+    } finally {
+      setAuthorizing(false);
     }
   }
 
@@ -226,7 +378,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
         const quoteRes = await fetch(`/api/admin/orders/${order.id}/quote-items`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items })
+          body: JSON.stringify({ items: serializeQuoteItems() })
         });
         if (!quoteRes.ok) {
           alert("No se pudieron guardar los items de cotización");
@@ -244,7 +396,13 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
   }
 
   async function handleCopyProforma() {
-    const validItems = items.filter((item) => String(item.description || "").trim())
+    const validItems = items
+      .filter((item) => String(item.description || "").trim())
+      .map((item) => ({
+        ...item,
+        qty: numberFromEditable(item.qty),
+        unit_price: numberFromEditable(item.unit_price),
+      }))
     const text = buildProformaText({
       publicCode: order.public_code,
       workType: order.work_type,
@@ -496,11 +654,11 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
 
           <div style={{ marginTop: "16px" }}>
             <label style={{ display: "block", marginBottom: "8px" }} className="text-sm font-medium text-slate-300">
-              KM actual
+              {odometerReadingLabel.toUpperCase()} actual
             </label>
             <input
               type="number"
-              placeholder="KM actual"
+              placeholder={`${odometerReadingLabel.toUpperCase()} actual`}
               value={currentKm}
               onChange={(e) => setCurrentKm(Number(e.target.value))}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
@@ -520,7 +678,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
             <br/>
             <input
               type="number"
-              placeholder="Intervalo mantenimiento km"
+              placeholder={`Intervalo mantenimiento ${odometerUnit}`}
               value={intervalKm}
               onChange={(e)=>setIntervalKm(Number(e.target.value))}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-orange-500"
@@ -586,7 +744,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                   value={item.category}
                   onChange={(e) => {
                     const newItems = [...items];
-                    newItems[idx].category = e.target.value;
+                    newItems[idx].category = e.target.value as "labor" | "part" | "supply";
                     setItems(newItems);
                   }}
                   className="rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
@@ -612,7 +770,7 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                   value={item.qty}
                   onChange={(e) => {
                     const newItems = [...items];
-                    newItems[idx].qty = Number(e.target.value);
+                    newItems[idx].qty = parseEditableNumber(e.target.value);
                     setItems(newItems);
                   }}
                   className="w-16 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
@@ -623,13 +781,13 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
                   value={item.unit_price}
                   onChange={(e) => {
                     const newItems = [...items];
-                    newItems[idx].unit_price = Number(e.target.value);
+                    newItems[idx].unit_price = parseEditableNumber(e.target.value);
                     setItems(newItems);
                   }}
                   className="w-20 rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-white focus:border-orange-500"
                 />
                 <span className="text-xs text-slate-400 w-16 text-right">
-                  ${(Number(item.qty) * Number(item.unit_price)).toFixed(2)}
+                  ${(numberFromEditable(item.qty) * numberFromEditable(item.unit_price)).toFixed(2)}
                 </span>
                 <button
                   type="button"
@@ -658,6 +816,78 @@ function DiagnosisEditor({ order }: DiagnosisEditorProps) {
               >
                 ↕ Ordenar por categoría
               </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-emerald-800 bg-emerald-950/20 p-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-300">
+                    Autorización interna del taller
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Úsalo cuando el taller necesita autorizar trabajos puntuales sin esperar la aprobación del cliente.
+                  </p>
+                </div>
+                {order.approval_status === "aprobado" && (
+                  <span className="rounded-full border border-green-700 bg-green-900/40 px-3 py-1 text-xs font-semibold text-green-300">
+                    Ya autorizado
+                  </span>
+                )}
+              </div>
+
+              {approvalGroups.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {approvalGroups.map((group) => (
+                    <label
+                      key={group.key}
+                      className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
+                        adminSelectedPriorities.includes(group.key)
+                          ? "border-emerald-600 bg-emerald-900/20"
+                          : "border-slate-700 bg-slate-900/60 opacity-70"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 text-sm text-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={adminSelectedPriorities.includes(group.key)}
+                          onChange={() => toggleAdminPriority(group.key)}
+                          disabled={authorizing || order.approval_status === "aprobado"}
+                          className="h-4 w-4 rounded accent-emerald-500"
+                        />
+                        <span>
+                          {PRIORITY_ICONS[group.key] || ""} {PRIORITY_LABELS[group.key] || group.key}
+                        </span>
+                        <span className="text-xs text-slate-500">({group.count})</span>
+                      </span>
+                      <span className="text-sm font-semibold text-slate-300">
+                        ${group.total.toFixed(2)}
+                      </span>
+                    </label>
+                  ))}
+
+                  <div className="flex flex-col gap-3 border-t border-slate-700 pt-3 md:flex-row md:items-center md:justify-between">
+                    <div className="text-sm text-slate-300">
+                      Total autorizado: <span className="font-bold text-emerald-300">${selectedAdminTotal.toFixed(2)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAdminAuthorize}
+                      disabled={
+                        authorizing ||
+                        order.approval_status === "aprobado" ||
+                        adminSelectedPriorities.length === 0
+                      }
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {authorizing ? "Autorizando..." : "Autorizar desde taller"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-400">
+                  Agrega items a la proforma para poder autorizar trabajos puntuales.
+                </p>
+              )}
             </div>
           </div>
 
@@ -716,6 +946,7 @@ type OrderItem = {
   plate: string
   make: string
   model: string
+  odometer_unit?: string | null
   customer_id?: string | null
   customer_name: string
   whatsapp: string
@@ -822,11 +1053,13 @@ export default function OrdersTable({
   const [prevServiceKm, setPrevServiceKm] = useState<string>("");
   const [prevServiceDate, setPrevServiceDate] = useState<string>("");
   const [modalIntervalKm, setModalIntervalKm] = useState<string>("");
-  const [maintenanceItems, setMaintenanceItems] = useState([
+  const [maintenanceItems, setMaintenanceItems] = useState<MaintenanceItem[]>([
     { category: "labor", description: "Cambio de aceite", qty: 1, unit_price: 10 },
     { category: "part", description: "Filtro de aceite", qty: 1, unit_price: 5 },
-    { category: "supply", description: "Aceite 10W40", qty: 4, unit_price: 8 },
+    { category: "supply", description: "Insumos", qty: 1, unit_price: 20 },
   ]);
+  const maintenanceUnit = getOdometerUnitLabel(selectedOrderForMaintenance?.odometer_unit);
+  const maintenanceReadingLabel = getOdometerReadingLabel(selectedOrderForMaintenance?.odometer_unit);
 
   const effectiveIntervalKm = modalIntervalKm
     ? Number(modalIntervalKm)
@@ -840,20 +1073,20 @@ export default function OrdersTable({
 
   const maintenanceLaborTotal = maintenanceItems
     .filter((item) => item.category === "labor")
-    .reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.unit_price || 0), 0);
+    .reduce((acc, item) => acc + maintenanceItemTotal(item), 0);
 
   const maintenancePartsTotal = maintenanceItems
     .filter((item) => item.category === "part")
-    .reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.unit_price || 0), 0);
+    .reduce((acc, item) => acc + maintenanceItemTotal(item), 0);
 
   const maintenanceSuppliesTotal = maintenanceItems
     .filter((item) => item.category === "supply")
-    .reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.unit_price || 0), 0);
+    .reduce((acc, item) => acc + maintenanceItemTotal(item), 0);
 
   const maintenanceGrandTotal =
     maintenanceLaborTotal + maintenancePartsTotal + maintenanceSuppliesTotal;
 
-  function updateMaintenanceItem(index: number, patch: Partial<{ category: "labor" | "part" | "supply"; description: string; qty: number; unit_price: number }>) {
+  function updateMaintenanceItem(index: number, patch: Partial<MaintenanceItem>) {
     setMaintenanceItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)) );
   }
 
@@ -894,7 +1127,11 @@ export default function OrdersTable({
         service_interval_km: effectiveIntervalKm,
         prev_service_km: prevServiceKm ? Number(prevServiceKm) : null,
         prev_service_date: prevServiceDate || null,
-        items: maintenanceItems,
+        items: maintenanceItems.map((item) => ({
+          ...item,
+          qty: numberFromEditable(item.qty),
+          unit_price: numberFromEditable(item.unit_price),
+        })),
       }),
     });
 
@@ -928,11 +1165,6 @@ export default function OrdersTable({
       return;
     }
 
-    if (newStatus === "en_proceso" && targetOrder.approval_status !== "aprobado") {
-      alert("Primero debe estar autorizado por el cliente.");
-      return;
-    }
-
     const previous = orders
 
     setOrders((prev) =>
@@ -954,9 +1186,18 @@ export default function OrdersTable({
 
 
 
-        if (!res.ok) {
+      if (!res.ok) {
         setOrders(previous)
         alert(data.error || 'No se pudo actualizar el estado')
+        return
+      }
+
+      if (data.order) {
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId ? { ...order, ...data.order } : order
+          )
+        )
       }
     } catch {
       setOrders(previous)
@@ -1592,19 +1833,19 @@ export default function OrdersTable({
           <div style={{ background: "#111827", color: "white", width: "90%", maxWidth: "900px", borderRadius: "12px", padding: "24px", maxHeight: "90vh", overflowY: "auto" }}>
             <h2 className="text-xl font-bold mb-4">Próximo mantenimiento</h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
-               <p>KM actual: <strong>{selectedOrderForMaintenance.current_km?.toLocaleString()}</strong></p>
+               <p>{maintenanceReadingLabel.toUpperCase()} actual: <strong>{formatOdometer(selectedOrderForMaintenance.current_km, maintenanceUnit)}</strong></p>
                <div>
-                 <label className="block text-xs text-slate-400 mb-1">Intervalo (km)</label>
+                 <label className="block text-xs text-slate-400 mb-1">Intervalo ({maintenanceUnit})</label>
                  <input
                    type="number"
                    value={modalIntervalKm || selectedOrderForMaintenance.service_interval_km || ""}
                    onChange={(e) => setModalIntervalKm(e.target.value)}
-                   placeholder="ej: 5000"
+                   placeholder={maintenanceUnit === "mi" ? "ej: 3000" : "ej: 5000"}
                    style={{ width: "100%", padding: "8px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", color:"white" }}
                  />
                </div>
-               <p>Próximo mantenimiento: <strong className="text-green-400">{nextServiceKm ? nextServiceKm.toLocaleString() + " km" : "—"}</strong></p>
-               <p className="text-slate-400 text-sm">Visible desde: {visibleFromKm ? visibleFromKm.toLocaleString() + " km" : "—"}</p>
+               <p>Próximo mantenimiento: <strong className="text-green-400">{nextServiceKm ? formatOdometer(nextServiceKm, maintenanceUnit) : "—"}</strong></p>
+               <p className="text-slate-400 text-sm">Visible desde: {visibleFromKm ? formatOdometer(visibleFromKm, maintenanceUnit) : "—"}</p>
             </div>
 
             <label className="block text-sm font-medium mb-1">Nombre del servicio</label>
@@ -1616,15 +1857,15 @@ export default function OrdersTable({
             />
 
             <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "10px", padding: "16px", marginBottom: "16px" }}>
-              <p className="text-sm font-semibold text-slate-300 mb-3">Visita anterior (opcional — mejora el cálculo de km/día)</p>
+              <p className="text-sm font-semibold text-slate-300 mb-3">Visita anterior (opcional — mejora el cálculo de {maintenanceUnit}/día)</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">KM del servicio anterior</label>
+                  <label className="block text-xs text-slate-400 mb-1">{maintenanceReadingLabel.toUpperCase()} del servicio anterior</label>
                   <input
                     type="number"
                     value={prevServiceKm}
                     onChange={(e) => setPrevServiceKm(e.target.value)}
-                    placeholder="ej: 229002"
+                    placeholder={maintenanceUnit === "mi" ? "ej: 142000" : "ej: 229002"}
                     style={{ width: "100%", padding: "8px", background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", color:"white" }}
                   />
                 </div>
@@ -1640,10 +1881,10 @@ export default function OrdersTable({
               </div>
               {prevServiceKm && prevServiceDate && selectedOrderForMaintenance?.current_km && (
                 <p className="text-xs text-green-400 mt-2">
-                  ✓ km/día estimado: ~{Math.round(
+                  {maintenanceUnit}/día estimado: ~{Math.round(
                     (selectedOrderForMaintenance.current_km - Number(prevServiceKm)) /
                     Math.max(1, (new Date(selectedOrderForMaintenance.created_at ?? Date.now()).getTime() - new Date(prevServiceDate).getTime()) / 86400000)
-                  )} km/día
+                  )} {maintenanceUnit}/día
                 </p>
               )}
             </div>
@@ -1684,15 +1925,15 @@ export default function OrdersTable({
                   <input 
                     type="number" 
                     value={item.qty} 
-                    onChange={(e) => updateMaintenanceItem(index, { qty: Number(e.target.value) })} 
+                    onChange={(e) => updateMaintenanceItem(index, { qty: parseEditableNumber(e.target.value) })} 
                     placeholder="Qty" 
                     style={{ background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", padding:"8px" }}
                   />
                   <input 
                     type="number" 
                     value={item.unit_price} 
-                    onChange={(e) => updateMaintenanceItem(index, { unit_price: Number(e.target.value) })} 
-                    placeholder="Precio" 
+                    onChange={(e) => updateMaintenanceItem(index, { unit_price: parseEditableNumber(e.target.value) })} 
+                    placeholder={item.category === "supply" ? "Total" : "P. unit."}
                     style={{ background:"#1f2937", border:"1px solid #374151", borderRadius:"8px", padding:"8px" }}
                   />
                   <button 
@@ -1701,6 +1942,9 @@ export default function OrdersTable({
                   >
                     X
                   </button>
+                  <span className="text-xs text-slate-400" style={{ gridColumn: "4 / 5" }}>
+                    ${maintenanceItemTotal(item).toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>

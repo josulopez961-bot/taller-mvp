@@ -100,8 +100,8 @@ export async function POST(
         category: item.category,
         priority: item.priority || 'urgente',
         description: String(item.description).trim(),
-        qty: Number(item.qty || 1),
-        unit_price: Number(item.unit_price || 0),
+        qty: item.qty === undefined || item.qty === null ? 1 : Number(item.qty),
+        unit_price: item.unit_price === undefined || item.unit_price === null ? 0 : Number(item.unit_price),
       }));
 
     if (cleanItems.length === 0) {
