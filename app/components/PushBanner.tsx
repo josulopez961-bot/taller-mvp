@@ -42,8 +42,8 @@ export default function PushBanner({ orderId }: { orderId: string }) {
       })
       setDone(true)
       setTimeout(() => setVisible(false), 3000)
-    } catch (e: any) {
-      setErrMsg(e?.message || 'Error desconocido')
+    } catch (e) {
+      setErrMsg(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
       setLoading(false)
     }

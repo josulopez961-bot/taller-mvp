@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import ApprovalActions from "./ApprovalActions";
 import MaintenanceAlert from "./MaintenanceAlert";
+import InstallAppPrompt from "@/app/components/InstallAppPrompt";
+import PushBanner from "@/app/components/PushBanner";
 import {
   ORDER_WORK_TYPE_LABELS,
   getWorkTypeBadgeClass,
@@ -206,6 +208,9 @@ export default async function OrderPublicPage({
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto max-w-5xl space-y-6 p-6">
+        <InstallAppPrompt />
+        <PushBanner orderId={order.id} />
+
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
           <h1 className="text-3xl font-bold">Seguimiento de orden</h1>
           <p className="mt-2 text-slate-300">

@@ -4,6 +4,7 @@ import {
   getOrderSummary,
   normalizeOrderWorkType,
 } from "@/lib/order-work-types";
+import { normalizePlate, normalizeWhatsapp } from "@/lib/customer-identity";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,9 +39,9 @@ export async function POST(req: Request) {
       estimated_delivery_date,
     } = body;
 
-    const normalizedPlate = String(plate || "").trim().toUpperCase();
+    const normalizedPlate = normalizePlate(plate);
     const normalizedCustomerName = String(customer_name || "").trim();
-    const normalizedWhatsapp = String(whatsapp || "").trim();
+    const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
     const normalizedMake = String(make || "").trim();
     const normalizedModel = String(model || "").trim();
     const normalizedEngine = String(engine || "").trim();
@@ -77,79 +78,39 @@ export async function POST(req: Request) {
     let customerId: string;
     let vehicleId: string;
 
-    const { data: existingCustomer, error: existingCustomerError } =
+    const { data: existingVehicleByPlate, error: existingVehicleByPlateError } =
       await supabase
-        .from("customers")
-        .select("id, full_name, whatsapp")
-        .eq("whatsapp", normalizedWhatsapp)
+        .from("vehicles")
+        .select("id, customer_id")
+        .eq("plate", normalizedPlate)
+        .limit(1)
         .maybeSingle();
 
-    if (existingCustomerError) {
+    if (existingVehicleByPlateError) {
       return NextResponse.json(
-        { error: existingCustomerError.message },
+        { error: existingVehicleByPlateError.message },
         { status: 500 }
       );
     }
 
-    if (existingCustomer) {
-      customerId = existingCustomer.id;
+    if (existingVehicleByPlate?.customer_id) {
+      customerId = existingVehicleByPlate.customer_id;
+      vehicleId = existingVehicleByPlate.id;
 
-      if (
-        existingCustomer.full_name !== normalizedCustomerName ||
-        (normalizedWhatsapp && existingCustomer.whatsapp !== normalizedWhatsapp)
-      ) {
-        const { error: updateCustomerError } = await supabase
-          .from("customers")
-          .update({
-            full_name: normalizedCustomerName,
-            whatsapp: normalizedWhatsapp,
-          })
-          .eq("id", customerId);
-
-        if (updateCustomerError) {
-          return NextResponse.json(
-            { error: updateCustomerError.message },
-            { status: 500 }
-          );
-        }
-      }
-    } else {
-      const { data: newCustomer, error: customerError } = await supabase
+      const { error: updateCustomerError } = await supabase
         .from("customers")
-        .insert({
+        .update({
           full_name: normalizedCustomerName,
           whatsapp: normalizedWhatsapp,
         })
-        .select("id")
-        .single();
+        .eq("id", customerId);
 
-      if (customerError || !newCustomer) {
+      if (updateCustomerError) {
         return NextResponse.json(
-          { error: customerError?.message || "No se pudo crear el cliente" },
+          { error: updateCustomerError.message },
           { status: 500 }
         );
       }
-
-      customerId = newCustomer.id;
-    }
-
-    const { data: existingVehicle, error: existingVehicleError } =
-      await supabase
-        .from("vehicles")
-        .select("id, plate, customer_id")
-        .eq("plate", normalizedPlate)
-        .eq("customer_id", customerId)
-        .maybeSingle();
-
-    if (existingVehicleError) {
-      return NextResponse.json(
-        { error: existingVehicleError.message },
-        { status: 500 }
-      );
-    }
-
-    if (existingVehicle) {
-      vehicleId = existingVehicle.id;
 
       const { error: updateVehicleError } = await supabase
         .from("vehicles")
@@ -169,6 +130,62 @@ export async function POST(req: Request) {
         );
       }
     } else {
+      const { data: existingCustomer, error: existingCustomerError } =
+      await supabase
+        .from("customers")
+        .select("id, full_name, whatsapp")
+        .eq("whatsapp", normalizedWhatsapp)
+        .maybeSingle();
+
+      if (existingCustomerError) {
+        return NextResponse.json(
+          { error: existingCustomerError.message },
+          { status: 500 }
+        );
+      }
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+
+        if (
+          existingCustomer.full_name !== normalizedCustomerName ||
+          (normalizedWhatsapp && existingCustomer.whatsapp !== normalizedWhatsapp)
+        ) {
+          const { error: updateCustomerError } = await supabase
+            .from("customers")
+            .update({
+              full_name: normalizedCustomerName,
+              whatsapp: normalizedWhatsapp,
+            })
+            .eq("id", customerId);
+
+          if (updateCustomerError) {
+            return NextResponse.json(
+              { error: updateCustomerError.message },
+              { status: 500 }
+            );
+          }
+        }
+      } else {
+        const { data: newCustomer, error: customerError } = await supabase
+          .from("customers")
+          .insert({
+            full_name: normalizedCustomerName,
+            whatsapp: normalizedWhatsapp,
+          })
+          .select("id")
+          .single();
+
+        if (customerError || !newCustomer) {
+          return NextResponse.json(
+            { error: customerError?.message || "No se pudo crear el cliente" },
+            { status: 500 }
+          );
+        }
+
+        customerId = newCustomer.id;
+      }
+
       const { data: newVehicle, error: vehicleError } = await supabase
         .from("vehicles")
         .insert({

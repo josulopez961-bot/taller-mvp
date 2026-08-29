@@ -1063,13 +1063,38 @@ export default function OrdersTable({
 
   const effectiveIntervalKm = modalIntervalKm
     ? Number(modalIntervalKm)
-    : (selectedOrderForMaintenance?.service_interval_km || 0);
+    : (selectedOrderForMaintenance?.service_interval_km || 5000);
 
   const nextServiceKm = selectedOrderForMaintenance?.current_km && effectiveIntervalKm
     ? selectedOrderForMaintenance.current_km + effectiveIntervalKm
     : 0;
 
-    const visibleFromKm = nextServiceKm ? nextServiceKm - 200 : 0;
+  const visibleFromKm = nextServiceKm ? nextServiceKm - 500 : 0;
+  const estimatedMaintenanceDueDate = (() => {
+    if (!selectedOrderForMaintenance?.current_km || !effectiveIntervalKm) return "";
+
+    const currentDate = new Date(selectedOrderForMaintenance.created_at ?? Date.now());
+    let daysUntilDue = 180;
+
+    if (prevServiceKm && prevServiceDate) {
+      const previousKm = Number(prevServiceKm);
+      const previousDate = new Date(prevServiceDate);
+      const daysBetweenServices = Math.max(
+        1,
+        (currentDate.getTime() - previousDate.getTime()) / 86400000
+      );
+      const kmDriven = selectedOrderForMaintenance.current_km - previousKm;
+
+      if (kmDriven > 0) {
+        const kmPerDay = kmDriven / daysBetweenServices;
+        daysUntilDue = Math.max(1, Math.round(effectiveIntervalKm / kmPerDay));
+      }
+    }
+
+    const dueDate = new Date(currentDate);
+    dueDate.setDate(dueDate.getDate() + daysUntilDue);
+    return dueDate.toISOString().slice(0, 10);
+  })();
 
   const maintenanceLaborTotal = maintenanceItems
     .filter((item) => item.category === "labor")
@@ -1125,6 +1150,7 @@ export default function OrdersTable({
         service_name: maintenanceServiceName,
         last_service_km: selectedOrderForMaintenance.current_km,
         service_interval_km: effectiveIntervalKm,
+        estimated_due_date: estimatedMaintenanceDueDate || null,
         prev_service_km: prevServiceKm ? Number(prevServiceKm) : null,
         prev_service_date: prevServiceDate || null,
         items: maintenanceItems.map((item) => ({
@@ -1370,6 +1396,12 @@ export default function OrdersTable({
                 🔔 Recordatorios
               </Link>
               <Link
+                href="/admin/customers"
+                className="inline-flex items-center justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-4 py-3 font-semibold text-sm"
+              >
+                Clientes
+              </Link>
+              <Link
                 href="/admin/history/new"
                 className="inline-flex items-center justify-center rounded-lg bg-zinc-700 hover:bg-zinc-600 px-4 py-3 font-semibold text-sm"
               >
@@ -1415,7 +1447,16 @@ export default function OrdersTable({
                     <td className="p-4 font-semibold">{order.public_code}</td>
 
                     <td className="p-4">
-                      <div>{order.customer_name || '-'}</div>
+                      {order.customer_id ? (
+                        <Link
+                          href={`/admin/customers/${order.customer_id}`}
+                          className="font-semibold text-white hover:text-orange-300 hover:underline"
+                        >
+                          {order.customer_name || '-'}
+                        </Link>
+                      ) : (
+                        <div>{order.customer_name || '-'}</div>
+                      )}
                       <div className="text-zinc-400 text-xs">{order.whatsapp || '-'}</div>
                     </td>
 
@@ -1845,7 +1886,15 @@ export default function OrdersTable({
                  />
                </div>
                <p>Próximo mantenimiento: <strong className="text-green-400">{nextServiceKm ? formatOdometer(nextServiceKm, maintenanceUnit) : "—"}</strong></p>
-               <p className="text-slate-400 text-sm">Visible desde: {visibleFromKm ? formatOdometer(visibleFromKm, maintenanceUnit) : "—"}</p>
+               <p className="text-slate-400 text-sm">Alerta desde: {visibleFromKm ? formatOdometer(visibleFromKm, maintenanceUnit) : "—"}</p>
+               <p className="text-slate-400 text-sm">
+                 Fecha estimada:{" "}
+                 <strong className="text-white">
+                   {estimatedMaintenanceDueDate
+                     ? new Date(estimatedMaintenanceDueDate).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })
+                     : "—"}
+                 </strong>
+               </p>
             </div>
 
             <label className="block text-sm font-medium mb-1">Nombre del servicio</label>
