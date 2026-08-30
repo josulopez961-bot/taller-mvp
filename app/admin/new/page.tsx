@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ORDER_WORK_TYPES,
@@ -26,6 +26,23 @@ type FormState = {
   insurance_company: string;
   insurance_claim_number: string;
   estimated_delivery_date: string;
+};
+
+type CustomerSearchVehicle = {
+  id: string;
+  plate: string;
+  make: string;
+  model: string;
+  year: string;
+  engine: string;
+  odometer_unit: "km" | "mi";
+};
+
+type CustomerSearchResult = {
+  id: string;
+  full_name: string;
+  whatsapp: string;
+  vehicles: CustomerSearchVehicle[];
 };
 
 const initialForm: FormState = {
@@ -58,6 +75,9 @@ export default function AdminNewOrderPage() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initialForm);
   const [loading, setLoading] = useState(false);
+  const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([]);
+  const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
 
   const isMaintenance = form.work_type === "mantenimiento";
   const isPaint = form.work_type === "pintura";
@@ -69,6 +89,64 @@ export default function AdminNewOrderPage() {
   ) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  useEffect(() => {
+    const query = form.customer_name.trim();
+
+    if (query.length < 2 || !showCustomerResults) {
+      setCustomerResults([]);
+      setSearchingCustomer(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      setSearchingCustomer(true);
+      try {
+        const response = await fetch(
+          `/api/admin/customers/search?q=${encodeURIComponent(query)}`
+        );
+        const data: unknown = await response.json();
+
+        if (
+          response.ok &&
+          typeof data === "object" &&
+          data !== null &&
+          "customers" in data &&
+          Array.isArray(data.customers)
+        ) {
+          setCustomerResults(data.customers as CustomerSearchResult[]);
+        }
+      } catch {
+        setCustomerResults([]);
+      } finally {
+        setSearchingCustomer(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [form.customer_name, showCustomerResults]);
+
+  function applyCustomer(customer: CustomerSearchResult, vehicle?: CustomerSearchVehicle) {
+    const selectedVehicle = vehicle || customer.vehicles[0];
+
+    setForm((prev) => ({
+      ...prev,
+      customer_name: customer.full_name,
+      whatsapp: customer.whatsapp,
+      ...(selectedVehicle
+        ? {
+            plate: selectedVehicle.plate,
+            make: selectedVehicle.make,
+            model: selectedVehicle.model,
+            year: selectedVehicle.year,
+            engine: selectedVehicle.engine,
+            odometer_unit: selectedVehicle.odometer_unit,
+          }
+        : {}),
+    }));
+    setShowCustomerResults(false);
+    setCustomerResults([]);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -180,10 +258,53 @@ export default function AdminNewOrderPage() {
               name="customer_name"
               placeholder="Nombre completo"
               value={form.customer_name}
-              onChange={handleChange}
+              onChange={(event) => {
+                handleChange(event);
+                setShowCustomerResults(true);
+              }}
+              onFocus={() => setShowCustomerResults(true)}
               className={inputClass}
               required
             />
+            {showCustomerResults && (searchingCustomer || customerResults.length > 0) && (
+              <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
+                {searchingCustomer && (
+                  <div className="px-3 py-2 text-sm text-slate-400">
+                    Buscando cliente...
+                  </div>
+                )}
+                {customerResults.map((customer) => (
+                  <div key={customer.id} className="border-t border-slate-800 first:border-t-0">
+                    <button
+                      type="button"
+                      onClick={() => applyCustomer(customer)}
+                      className="w-full px-3 py-3 text-left hover:bg-slate-900"
+                    >
+                      <span className="block font-semibold text-white">
+                        {customer.full_name || "Cliente sin nombre"}
+                      </span>
+                      <span className="block text-xs text-slate-400">
+                        {customer.whatsapp || "Sin WhatsApp"}
+                      </span>
+                    </button>
+                    {customer.vehicles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 px-3 pb-3">
+                        {customer.vehicles.map((vehicle) => (
+                          <button
+                            key={vehicle.id}
+                            type="button"
+                            onClick={() => applyCustomer(customer, vehicle)}
+                            className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-orange-500 hover:text-orange-300"
+                          >
+                            {vehicle.plate || "Sin placa"} · {[vehicle.make, vehicle.model].filter(Boolean).join(" ")}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <input
               name="whatsapp"
               placeholder="WhatsApp (ej. 593999123456)"
