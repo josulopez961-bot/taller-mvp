@@ -10,9 +10,14 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function AdminOrdersPage() {
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select(`
+  const [
+    { data: orders, error },
+    { data: redemptionRows },
+    { data: loyaltyNotificationRows },
+  ] = await Promise.all([
+    supabase
+      .from('orders')
+      .select(`
       id,
       public_code,
       status,
@@ -55,8 +60,21 @@ export default async function AdminOrdersPage() {
           whatsapp
         )
       )
-    `)
-    .order('created_at', { ascending: false })
+      `)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('loyalty_redemptions')
+      .select('id, order_id, status, points_requested, points_approved, labor_subtotal, requested_at')
+      .in('status', ['requested', 'approved'])
+      .order('requested_at', { ascending: false }),
+    supabase
+      .from('admin_notifications')
+      .select('id, notification_type, title, message, created_at')
+      .in('notification_type', ['loyalty_kept', 'loyalty_expiring'])
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ])
 
   if (error) {
     return (
@@ -116,6 +134,30 @@ export default async function AdminOrdersPage() {
       }
     }) || []
 
-  return <OrdersTable initialOrders={normalizedOrders} />
+  const orderById = new Map(normalizedOrders.map((order) => [order.id, order]))
+  const loyaltyRedemptions = (redemptionRows || []).map((redemption) => {
+    const order = orderById.get(redemption.order_id)
+    return {
+      id: redemption.id,
+      order_id: redemption.order_id,
+      status: redemption.status,
+      points_requested: Number(redemption.points_requested || 0),
+      points_approved:
+        redemption.points_approved === null ? null : Number(redemption.points_approved),
+      labor_subtotal: Number(redemption.labor_subtotal || 0),
+      requested_at: redemption.requested_at,
+      public_code: order?.public_code || '',
+      customer_name: order?.customer_name || 'Cliente',
+      plate: order?.plate || '',
+    }
+  })
+
+  return (
+    <OrdersTable
+      initialOrders={normalizedOrders}
+      initialLoyaltyRedemptions={loyaltyRedemptions}
+      initialLoyaltyNotifications={loyaltyNotificationRows || []}
+    />
+  )
 }
 

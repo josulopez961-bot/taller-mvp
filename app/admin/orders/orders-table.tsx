@@ -6,6 +6,7 @@ import OrderNotes from './order-notes'
 import OrderPhotos from './order-photos'
 import OrderDelivery from './order-delivery'
 import OrderProcess from './order-process'
+import OrderQrButton from './order-qr-button'
 import { useRouter } from "next/navigation"
 import {
   ORDER_WORK_TYPES,
@@ -995,6 +996,27 @@ function normalizeWhatsapp(input: string) {
   return digits
 }
 
+type LoyaltyRedemptionAdmin = {
+  id: string
+  order_id: string
+  status: string
+  points_requested: number
+  points_approved: number | null
+  labor_subtotal: number
+  requested_at: string
+  public_code: string
+  customer_name: string
+  plate: string
+}
+
+type LoyaltyNotificationAdmin = {
+  id: string
+  notification_type: string
+  title: string
+  message: string
+  created_at: string
+}
+
 function formatShortDateTime(value?: string | null) {
   if (!value) return null
 
@@ -1029,14 +1051,69 @@ function buildEditOrderForm(order: OrderItem): EditOrderForm {
 
 export default function OrdersTable({
   initialOrders,
+  initialLoyaltyRedemptions,
+  initialLoyaltyNotifications,
 }: {
   initialOrders: OrderItem[]
+  initialLoyaltyRedemptions: LoyaltyRedemptionAdmin[]
+  initialLoyaltyNotifications: LoyaltyNotificationAdmin[]
 }) {
+  const router = useRouter()
   const [orders, setOrders] = useState(initialOrders)
+  const [loyaltyRedemptions, setLoyaltyRedemptions] = useState(initialLoyaltyRedemptions)
+  const [loyaltyNotifications, setLoyaltyNotifications] = useState(initialLoyaltyNotifications)
+  const [reviewingRedemptionId, setReviewingRedemptionId] = useState<string | null>(null)
 
   useEffect(() => {
     setOrders(initialOrders)
   }, [initialOrders])
+
+  useEffect(() => {
+    setLoyaltyRedemptions(initialLoyaltyRedemptions)
+  }, [initialLoyaltyRedemptions])
+
+  useEffect(() => {
+    setLoyaltyNotifications(initialLoyaltyNotifications)
+  }, [initialLoyaltyNotifications])
+
+  async function dismissLoyaltyNotification(id: string) {
+    const response = await fetch(`/api/admin/notifications/${id}`, { method: "POST" })
+    if (response.ok) {
+      setLoyaltyNotifications((current) => current.filter((item) => item.id !== id))
+    }
+  }
+
+  async function reviewRedemption(id: string, action: "approve" | "reject") {
+    setReviewingRedemptionId(id)
+    try {
+      const response = await fetch(`/api/admin/loyalty/redemptions/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        alert(data.error || "No se pudo revisar el canje")
+        return
+      }
+      setLoyaltyRedemptions((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status: data.redemption.status,
+                points_approved: data.redemption.points_approved,
+              }
+            : item
+        )
+      )
+      router.refresh()
+    } catch {
+      alert("Error al revisar el canje")
+    } finally {
+      setReviewingRedemptionId(null)
+    }
+  }
   const [query, setQuery] = useState('')
   const [openNotesId, setOpenNotesId] = useState<string | null>(null)
   const [openPhotosId, setOpenPhotosId] = useState<string | null>(null)
@@ -1417,6 +1494,99 @@ export default function OrdersTable({
           </div>
         </div>
 
+        {loyaltyRedemptions.length > 0 && (
+          <section className="mb-6 rounded-2xl border border-amber-500/40 bg-amber-950/20 p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
+                  FINECAR Beneficios
+                </p>
+                <h2 className="mt-1 text-xl font-bold">Solicitudes de puntos</h2>
+              </div>
+              <span className="rounded-full bg-amber-500 px-3 py-1 text-sm font-bold text-zinc-950">
+                {loyaltyRedemptions.filter((item) => item.status === "requested").length} pendientes
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {loyaltyRedemptions.map((redemption) => (
+                <div
+                  key={redemption.id}
+                  className="flex flex-col gap-3 rounded-xl border border-zinc-700 bg-zinc-950/70 p-4 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold text-white">
+                      {redemption.customer_name} · {redemption.plate || redemption.public_code}
+                    </p>
+                    <p className="mt-1 text-sm text-zinc-400">
+                      Solicita {(redemption.points_approved || redemption.points_requested).toLocaleString('es-EC')} puntos
+                      (${((redemption.points_approved || redemption.points_requested) / 100).toFixed(2)}) · Mano de obra ${redemption.labor_subtotal.toFixed(2)}
+                    </p>
+                    {redemption.status === "approved" && (
+                      <p className="mt-1 text-sm font-semibold text-emerald-400">
+                        Aprobado; se descontará al entregar la orden.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <a
+                      href={`/o/${redemption.public_code}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-800"
+                    >
+                      Ver orden
+                    </a>
+                    {redemption.status === "requested" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => reviewRedemption(redemption.id, "approve")}
+                          disabled={reviewingRedemptionId === redemption.id}
+                          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50"
+                        >
+                          Aprobar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reviewRedemption(redemption.id, "reject")}
+                          disabled={reviewingRedemptionId === redemption.id}
+                          className="rounded-lg border border-red-700 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-950/40 disabled:opacity-50"
+                        >
+                          Rechazar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {loyaltyNotifications.length > 0 && (
+          <section className="mb-6 space-y-3">
+            {loyaltyNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                className="flex flex-col gap-3 rounded-xl border border-blue-700/40 bg-blue-950/20 p-4 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="font-semibold text-blue-200">{notification.title}</p>
+                  <p className="mt-1 text-sm text-zinc-300">{notification.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismissLoyaltyNotification(notification.id)}
+                  className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-200 hover:bg-blue-950/50"
+                >
+                  Marcar visto
+                </button>
+              </div>
+            ))}
+          </section>
+        )}
+
         <div className="mb-6">
           <input
             placeholder="Buscar por FIN, placa, cliente, WhatsApp o servicio..."
@@ -1572,6 +1742,8 @@ export default function OrdersTable({
                         >
                           Copiar link
                         </button>
+
+                        <OrderQrButton publicCode={order.public_code} />
 
                         <button
                           type="button"

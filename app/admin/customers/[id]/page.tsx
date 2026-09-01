@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatOdometer, getOdometerUnitLabel } from "@/lib/odometer";
 import { normalizeWhatsapp } from "@/lib/customer-identity";
+import { getLoyaltySnapshot } from "@/lib/loyalty";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -146,6 +147,13 @@ export default async function CustomerFolderPage({
   const lifetimeValue = orders.reduce((total, order) => total + orderTotal(order), 0);
   const lastVisit = orders[0];
   const activePlans = plans.filter((plan) => plan.status === "scheduled");
+  const loyalty = await getLoyaltySnapshot(supabase, id);
+  const { data: loyaltyTransactions } = await supabase
+    .from("loyalty_transactions")
+    .select("id, transaction_type, points_delta, balance_after, description, created_at")
+    .eq("customer_id", id)
+    .order("created_at", { ascending: false })
+    .limit(8);
 
   return (
     <div className="min-h-screen bg-[#050816] p-6 text-white">
@@ -210,6 +218,49 @@ export default async function CustomerFolderPage({
               </p>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-950/10 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+                FINECAR Beneficios
+              </p>
+              <h2 className="mt-2 text-2xl font-bold capitalize">
+                {loyalty.activated ? loyalty.level : "Sin activar"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                {loyalty.completedVisits} visita(s) completada(s) en los últimos 12 meses
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-700/40 bg-slate-950/60 px-5 py-4 text-right">
+              <p className="text-3xl font-bold text-amber-300">
+                {loyalty.balance.toLocaleString("es-EC")} pts
+              </p>
+              <p className="text-sm text-slate-400">${loyalty.balanceUsd.toFixed(2)} disponibles</p>
+            </div>
+          </div>
+
+          {loyaltyTransactions && loyaltyTransactions.length > 0 && (
+            <div className="mt-5 border-t border-amber-900/50 pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                Últimos movimientos
+              </p>
+              <div className="space-y-2">
+                {loyaltyTransactions.map((transaction) => (
+                  <div key={transaction.id} className="flex items-center justify-between gap-4 text-sm">
+                    <div>
+                      <p className="text-slate-200">{transaction.description}</p>
+                      <p className="text-xs text-slate-500">{formatDate(transaction.created_at)}</p>
+                    </div>
+                    <span className={Number(transaction.points_delta) > 0 ? "font-semibold text-emerald-400" : "font-semibold text-red-300"}>
+                      {Number(transaction.points_delta) > 0 ? "+" : ""}{Number(transaction.points_delta).toLocaleString("es-EC")} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="space-y-3">

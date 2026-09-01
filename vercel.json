@@ -3,6 +3,10 @@
     {
       "path": "/api/admin/maintenance-alert",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/admin/loyalty-expiration",
+      "schedule": "15 13 * * *"
     }
   ]
 }

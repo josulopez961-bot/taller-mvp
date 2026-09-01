@@ -3,6 +3,8 @@ import ApprovalActions from "./ApprovalActions";
 import MaintenanceAlert from "./MaintenanceAlert";
 import InstallAppPrompt from "@/app/components/InstallAppPrompt";
 import PushBanner from "@/app/components/PushBanner";
+import LoyaltyCard from "./LoyaltyCard";
+import { calculateEligibleLabor, getLoyaltySnapshot } from "@/lib/loyalty";
 import {
   ORDER_WORK_TYPE_LABELS,
   getWorkTypeBadgeClass,
@@ -105,6 +107,7 @@ export default async function OrderPublicPage({
         year,
         odometer_unit,
         customer:customers (
+          id,
           full_name,
           whatsapp
         )
@@ -194,6 +197,36 @@ export default async function OrderPublicPage({
         : vehicle.customer
       : null;
 
+  const customerId = customer && "id" in customer ? String(customer.id || "") : "";
+  const loyalty = customerId
+    ? await getLoyaltySnapshot(supabase, customerId)
+    : {
+        activated: false,
+        balance: 0,
+        balanceUsd: 0,
+        completedVisits: 0,
+        level: "inicial" as const,
+        pointsPerDollar: 0,
+        nextLevelVisits: 2,
+        lastActivityAt: null,
+      };
+  const { data: loyaltyRedemption } = order.id
+    ? await supabase
+        .from("loyalty_redemptions")
+        .select("status, points_requested, points_approved")
+        .eq("order_id", order.id)
+        .maybeSingle()
+    : { data: null };
+  const eligibleLabor = calculateEligibleLabor(
+    (quoteItems || []).map((item) => ({
+      category: item.category,
+      priority: item.priority,
+      qty: Number(item.qty || 0),
+      unit_price: Number(item.unit_price || 0),
+    })),
+    order.authorized_priorities
+  );
+
   const normalizedStatus = normalizeStatus(order.status);
   const normalizedWorkType = normalizeOrderWorkType(order.work_type);
   const currentStepIndex = getStepIndex(normalizedStatus);
@@ -210,6 +243,18 @@ export default async function OrderPublicPage({
       <div className="mx-auto max-w-5xl space-y-6 p-6">
         <InstallAppPrompt />
         <PushBanner orderId={order.id} />
+        <LoyaltyCard
+          publicCode={order.public_code}
+          activated={loyalty.activated}
+          balance={loyalty.balance}
+          completedVisits={loyalty.completedVisits}
+          level={loyalty.level}
+          pointsPerDollar={loyalty.pointsPerDollar}
+          nextLevelVisits={loyalty.nextLevelVisits}
+          laborSubtotal={eligibleLabor}
+          approvalStatus={order.approval_status}
+          redemption={loyaltyRedemption}
+        />
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
           <h1 className="text-3xl font-bold">Seguimiento de orden</h1>

@@ -101,7 +101,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ ok: true, order: updatedOrder })
+    let loyalty = null
+    let loyaltyWarning: string | null = null
+
+    if (normalizedStatus === 'entregado') {
+      const { data: loyaltyResult, error: loyaltyError } = await supabase.rpc(
+        'finalize_loyalty_order',
+        { p_order_id: orderId }
+      )
+      loyalty = loyaltyResult
+      loyaltyWarning = loyaltyError?.message || null
+
+      if (loyaltyError) {
+        console.error('LOYALTY_FINALIZE_ERROR', loyaltyError)
+      }
+    }
+
+    return NextResponse.json({ ok: true, order: updatedOrder, loyalty, loyaltyWarning })
   } catch {
     return NextResponse.json(
       { error: 'Error interno al actualizar estado' },
